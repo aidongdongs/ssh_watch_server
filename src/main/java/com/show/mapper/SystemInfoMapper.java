@@ -25,6 +25,8 @@ public interface SystemInfoMapper {
             @Result(property = "memoryUsage", column = "memory_usage"),
             @Result(property = "diskInfo", column = "disk_info"),
             @Result(property = "diskUsagePercent", column = "disk_usage_percent"),
+            @Result(property = "topProcesses", column = "top_processes"),
+            @Result(property = "topMemProcesses", column = "top_mem_processes"),
             @Result(property = "createdAt", column = "created_at"),
             @Result(property = "diskUsages", column = "id", javaType = List.class,
                     many = @Many(select = "selectDiskUsagesByMonitorId"))
@@ -45,6 +47,8 @@ public interface SystemInfoMapper {
             @Result(property = "memoryUsage", column = "memory_usage"),
             @Result(property = "diskInfo", column = "disk_info"),
             @Result(property = "diskUsagePercent", column = "disk_usage_percent"),
+            @Result(property = "topProcesses", column = "top_processes"),
+            @Result(property = "topMemProcesses", column = "top_mem_processes"),
             @Result(property = "createdAt", column = "created_at"),
             @Result(property = "diskUsages", column = "id", javaType = List.class,
                     many = @Many(select = "selectDiskUsagesByMonitorId"))
@@ -64,6 +68,8 @@ public interface SystemInfoMapper {
             @Result(property = "memoryUsage", column = "memory_usage"),
             @Result(property = "diskInfo", column = "disk_info"),
             @Result(property = "diskUsagePercent", column = "disk_usage_percent"),
+            @Result(property = "topProcesses", column = "top_processes"),
+            @Result(property = "topMemProcesses", column = "top_mem_processes"),
             @Result(property = "createdAt", column = "created_at"),
             @Result(property = "diskUsages", column = "id", javaType = List.class,
                     many = @Many(select = "selectDiskUsagesByMonitorId"))
@@ -83,6 +89,8 @@ public interface SystemInfoMapper {
             @Result(property = "memoryUsage", column = "memory_usage"),
             @Result(property = "diskInfo", column = "disk_info"),
             @Result(property = "diskUsagePercent", column = "disk_usage_percent"),
+            @Result(property = "topProcesses", column = "top_processes"),
+            @Result(property = "topMemProcesses", column = "top_mem_processes"),
             @Result(property = "createdAt", column = "created_at"),
             @Result(property = "diskUsages", column = "id", javaType = List.class,
                     many = @Many(select = "selectDiskUsagesByMonitorId"))
@@ -110,10 +118,12 @@ public interface SystemInfoMapper {
     @Insert({
             "INSERT INTO system_monitor (",
             "  id, host, port, username, password, top_info, cpu_usage,",
-            "  free_info, memory_usage, disk_info, disk_usage_percent, created_at",
+            "  free_info, memory_usage, disk_info, disk_usage_percent,",
+            "  top_processes, top_mem_processes, created_at",
             ") VALUES (",
             "  #{id}, #{host}, #{port}, #{username}, #{password}, #{topInfo}, #{cpuUsage},",
-            "  #{freeInfo}, #{memoryUsage}, #{diskInfo}, #{diskUsagePercent}, #{createdAt}",
+            "  #{freeInfo}, #{memoryUsage}, #{diskInfo}, #{diskUsagePercent},",
+            "  #{topProcesses}, #{topMemProcesses}, #{createdAt}",
             ")"
     })
     @Options(useGeneratedKeys = true, keyProperty = "id")
@@ -133,6 +143,8 @@ public interface SystemInfoMapper {
             "  <if test='memoryUsage != null and memoryUsage != \"\"'>memory_usage = #{memoryUsage},</if>",
             "  <if test='diskInfo != null and diskInfo != \"\"'>disk_info = #{diskInfo},</if>",
             "  <if test='diskUsagePercent != null'>disk_usage_percent = #{diskUsagePercent},</if>",
+            "  <if test='topProcesses != null and topProcesses != \"\"'>top_processes = #{topProcesses},</if>",
+            "  <if test='topMemProcesses != null and topMemProcesses != \"\"'>top_mem_processes = #{topMemProcesses},</if>",
             "  <if test='createdAt != null'>created_at = #{createdAt},</if>",
             "</set>",
             "WHERE id = #{id}",

@@ -21,21 +21,24 @@ public class Shouye {
     @Autowired
     private SystemInfoMapper systemMonitorMapper;
 
+    // 首页：查询所有监控数据并渲染到 monitor/list 模板
+    // 进入 / 目录，进行跳转到对应的首页
     @RequestMapping("/")
     public String shouye(Model model){
-        // 增加逻辑，查询数据返回首页。
-        log.info("shouye");
+        log.info("/ 跳转到首页");
+         //  查询服务器数据
         List<SystemInfo> monitors = systemMonitorMapper.findAll();
+
         monitors.forEach(i -> log.info("{}", i));
         model.addAttribute("monitors", monitors);
         log.info("monitors count: {}", monitors.size());
         return "monitor/list";
     }
 
+    // 添加服务器页面（渲染 sshpage/add-server.html 表单）
     @GetMapping("service/add")
-    public String addSsh(Model model){
-
+    public String addSsh() {
         return "sshpage/add-server";
     }
-    
+
 }

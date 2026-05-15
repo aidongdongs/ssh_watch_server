@@ -1,4 +1,4 @@
-// queueMicrotask polyfill
+// queueMicrotask polyfill（兼容不支持 queueMicrotask 的旧浏览器）
 if (typeof window.queueMicrotask !== 'function') {
     window.queueMicrotask = function(callback) {
         Promise.resolve()
@@ -11,7 +11,7 @@ if (typeof window.queueMicrotask !== 'function') {
     };
 }
 
-// replaceChildren polyfill
+// replaceChildren polyfill（兼容不支持 replaceChildren 的旧浏览器）
 if (!Element.prototype.replaceChildren) {
     Element.prototype.replaceChildren = function() {
         while (this.lastChild) {
@@ -23,8 +23,9 @@ if (!Element.prototype.replaceChildren) {
     };
 }
 
-// ========== 主题系统 ==========
+// ========== 主题系统：定义六种终端配色方案 ==========
 const themes = {
+    // 深色主题（默认）
     dark: {
         name: '深色',
         xterm: {
@@ -35,6 +36,7 @@ const themes = {
             selectionBackground: '#5a5a5a'
         }
     },
+    // 浅色主题
     light: {
         name: '浅色',
         xterm: {
@@ -45,6 +47,7 @@ const themes = {
             selectionBackground: '#b0d4ff'
         }
     },
+    // 绿色主题（经典黑底绿字）
     green: {
         name: '绿色',
         xterm: {
@@ -55,6 +58,7 @@ const themes = {
             selectionBackground: '#003300'
         }
     },
+    // Dracula 主题
     dracula: {
         name: '德古拉',
         xterm: {
@@ -81,6 +85,7 @@ const themes = {
             brightWhite: '#ffffff'
         }
     },
+    // Nord 主题
     nord: {
         name: 'Nord',
         xterm: {
@@ -107,6 +112,7 @@ const themes = {
             brightWhite: '#eceff4'
         }
     },
+    // Gruvbox 主题
     gruvbox: {
         name: 'Gruvbox',
         xterm: {
@@ -135,8 +141,10 @@ const themes = {
     }
 };
 
+// 当前主题（从 localStorage 读取，默认 dark）
 let currentTheme = localStorage.getItem('console-theme') || 'dark';
 
+// 应用主题：切换 CSS 类、更新 xterm 主题、更新按钮高亮
 function applyTheme(themeName) {
     if (!themes[themeName]) return;
     currentTheme = themeName;
@@ -168,7 +176,7 @@ function handleTerminalInput(data) {
     }
 }
 
-// 重建终端（切换主题时使用）
+// 重建终端（切换主题时使用）：保存内容 → 销毁旧实例 → 创建新实例 → 恢复内容
 function recreateTerminal(themeConfig) {
     // 保存当前终端内容
     var savedLines = [];
@@ -226,18 +234,13 @@ console.log("服务器信息:", {serverId, serverHost, serverPort, serverUsernam
 let websocket;
 let connected = false;
 let terminal;
-let currentPath = "/";
-let selectedLocalFile = null;
-let selectedRemoteFile = null;
 
-// 页面加载完成后初始化
+// ========== 页面入口：页面加载后依次初始化主题、终端、WebSocket ==========
 window.onload = function() {
     console.log("页面加载完成，开始初始化终端");
 
-    // 加载保存的主题
     applyTheme(currentTheme);
 
-    // 绑定主题按钮事件
     document.querySelectorAll('.theme-btn').forEach(function(btn) {
         btn.addEventListener('click', function() {
             applyTheme(this.dataset.theme);
@@ -246,10 +249,11 @@ window.onload = function() {
 
     initTerminal();
     initWebSocket();
-    setupDragAndDrop();
 };
 
-// 初始化xterm.js终端
+// ========== 终端管理 ==========
+
+// 初始化 xterm.js 终端
 function initTerminal() {
     console.log("初始化xterm.js终端");
     var themeConfig = themes[currentTheme].xterm;
@@ -275,7 +279,7 @@ function initTerminal() {
     terminal.write("终端初始化完成\r\n");
     terminal.write("服务器信息: " + serverHost + ":" + serverPort + " (" + serverUsername + ")\r\n");
 
-    // 使用 ResizeObserver 监听终端容器尺寸变化
+    // 使用 ResizeObserver 监听终端容器尺寸变化，自动适配
     const terminalEl = document.getElementById('terminal');
     const resizeObserver = new ResizeObserver(function() {
         requestAnimationFrame(function() {
@@ -303,7 +307,7 @@ function initTerminal() {
     }, 100);
 }
 
-// 自适应终端尺寸：基于窗口尺寸减去 20px 边距和标题栏
+// 自适应终端尺寸：基于窗口尺寸减去边距和标题栏，并同步到后端 PTY
 function fitTerminal() {
     if (!terminal) return;
 
@@ -338,7 +342,7 @@ function fitTerminal() {
     terminal.resize(newCols, newRows);
     console.log("终端尺寸适配: " + newCols + "x" + newRows + " (窗口 " + width + "x" + height + ", 字符 " + charWidth.toFixed(1) + "x" + charHeight.toFixed(1) + ")");
 
-    // 同步尺寸到后端 PTY
+    // 同步尺寸到后端 PTY，确保远程 Shell 的 $COLUMNS/$LINES 正确
     if (connected && websocket && websocket.readyState === WebSocket.OPEN) {
         websocket.send(JSON.stringify({
             type: 'resize',
@@ -348,7 +352,9 @@ function fitTerminal() {
     }
 }
 
-// 初始化WebSocket连接
+// ========== WebSocket 连接管理 ==========
+
+// 初始化 WebSocket 连接
 function initWebSocket() {
     const wsProtocol = window.location.protocol === 'https:' ? 'wss://' : 'ws://';
     const wsUrl = wsProtocol + window.location.host + '/ssh/' + serverId;
@@ -358,6 +364,7 @@ function initWebSocket() {
 
     websocket = new WebSocket(wsUrl);
 
+    // 连接建立后的回调
     websocket.onopen = function(event) {
         terminal.write("WebSocket连接已建立\r\n");
         console.log("WebSocket连接已建立");
@@ -366,43 +373,42 @@ function initWebSocket() {
         setTimeout(fitTerminal, 200);
     };
 
+    // 收到服务端消息的处理
     websocket.onmessage = function(event) {
         console.log("收到WebSocket消息:", event.data);
         if (typeof event.data === 'string') {
             try {
-                // 尝试解析JSON消息
+                // 尝试解析 JSON 消息
                 const message = JSON.parse(event.data);
                 if (message.type === 'terminal') {
-                    // 终端输出消息
+                    // 终端输出消息：直接写入终端
                     terminal.write(message.content);
-                    // 如果收到连接成功的消息，设置connected为true
+                    // 如果收到连接成功的消息，设置 connected 为 true
                     if (message.content && message.content.startsWith('Connected to ')) {
                         connected = true;
                     }
-                } else if (message.type === 'fileList') {
-                    // 文件列表消息
-                    handleRemoteFileList(message.files);
                 } else if (message.type === 'error') {
-                    // 错误消息
+                    // 错误消息：红色显示
                     terminal.write("\r\n\x1b[31m" + message.content + "\x1b[0m\r\n");
                 } else {
                     // 其他类型消息按普通文本处理
                     terminal.write(event.data);
                 }
             } catch (e) {
-                // 不是JSON格式，按普通文本处理
+                // 不是 JSON 格式，按普通文本处理
                 terminal.write(event.data);
-                // 如果收到连接成功的消息，设置connected为true
+                // 如果收到连接成功的消息，设置 connected 为 true
                 if (event.data && event.data.startsWith('Connected to ')) {
                     connected = true;
                 }
             }
         } else {
-            // 处理非字符串类型的消息
+            // 处理非字符串类型的消息（如 Blob、ArrayBuffer）
             terminal.write("[非文本消息]\r\n");
         }
     };
 
+    // 连接关闭的回调
     websocket.onclose = function(event) {
         connected = false;
         terminal.write("\r\n\x1b[31m连接已关闭\x1b[0m\r\n");
@@ -411,13 +417,16 @@ function initWebSocket() {
         console.log("WebSocket连接关闭:", event.code, event.reason);
     };
 
+    // 连接错误的回调
     websocket.onerror = function(error) {
         terminal.write("\r\n\x1b[31mWebSocket错误: " + error + "\x1b[0m\r\n");
         console.error("WebSocket错误:", error);
     };
 }
 
-// 关闭Shell
+// ========== Shell 控制 ==========
+
+// 关闭 Shell 连接
 function closeShell() {
     if (confirm('确定要关闭Shell连接吗？')) {
         if (websocket) {
@@ -425,92 +434,4 @@ function closeShell() {
         }
         window.close();
     }
-}
-
-// 设置拖拽上传
-function setupDragAndDrop() {
-    const dropZone = document.getElementById('dropZone');
-    if (!dropZone) return;
-
-    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, preventDefaults, false);
-        document.body.addEventListener(eventName, preventDefaults, false);
-    });
-
-    function preventDefaults(e) {
-        e.preventDefault();
-        e.stopPropagation();
-    }
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropZone.addEventListener(eventName, highlight, false);
-    });
-
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropZone.addEventListener(eventName, unhighlight, false);
-    });
-
-    function highlight() {
-        dropZone.classList.add('dragover');
-    }
-
-    function unhighlight() {
-        dropZone.classList.remove('dragover');
-    }
-
-    dropZone.addEventListener('drop', handleDrop, false);
-
-    function handleDrop(e) {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        handleFiles(files);
-    }
-
-    function handleFiles(files) {
-        if (files.length > 0) {
-            selectedLocalFile = files[0];
-            showUploadModal();
-        }
-    }
-}
-
-// 显示上传模态框
-function showUploadModal() {
-    if (!selectedLocalFile) {
-        alert("请选择要上传的文件");
-        return;
-    }
-
-    document.getElementById('remoteUploadPath').value = currentPath === "/" ? "/" + selectedLocalFile.name : currentPath + "/" + selectedLocalFile.name;
-    document.getElementById('uploadModal').classList.add('show');
-}
-
-// 隐藏上传模态框
-function hideUploadModal() {
-    document.getElementById('uploadModal').classList.remove('show');
-    selectedLocalFile = null;
-    document.getElementById('localFile').value = '';
-}
-
-// 执行上传
-function performUpload() {
-    const fileInput = document.getElementById('localFile');
-    const remotePathInput = document.getElementById('remoteUploadPath');
-
-    if (!fileInput.files || fileInput.files.length === 0) {
-        alert("请选择要上传的文件");
-        return;
-    }
-
-    if (!remotePathInput.value) {
-        alert("请输入远程保存路径");
-        return;
-    }
-
-    selectedLocalFile = fileInput.files[0];
-    const remotePath = remotePathInput.value;
-
-    // 这里应该实现文件上传逻辑
-    alert("文件上传功能待实现");
-    hideUploadModal();
 }

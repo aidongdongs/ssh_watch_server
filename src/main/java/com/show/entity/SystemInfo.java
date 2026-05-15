@@ -18,6 +18,10 @@ public class SystemInfo {
     private String memoryUsage;
     private String diskInfo;
     private Integer diskUsagePercent;
+    /** CPU使用率前三的进程信息（由 top -bn 1 解析得到，格式: "PID %CPU COMMAND"） */
+    private String topProcesses;
+    /** 内存使用率前三的进程信息（由 top -bn 1 解析得到，格式: "PID %MEM COMMAND"） */
+    private String topMemProcesses;
     private String createdAt;
     private List<DiskUsage> diskUsages;
 
@@ -120,6 +124,22 @@ public class SystemInfo {
         this.diskUsagePercent = diskUsagePercent;
     }
 
+    public String getTopProcesses() {
+        return topProcesses;
+    }
+
+    public void setTopProcesses(String topProcesses) {
+        this.topProcesses = topProcesses;
+    }
+
+    public String getTopMemProcesses() {
+        return topMemProcesses;
+    }
+
+    public void setTopMemProcesses(String topMemProcesses) {
+        this.topMemProcesses = topMemProcesses;
+    }
+
     public String getCreatedAt() {
         return createdAt;
     }
@@ -150,6 +170,8 @@ public class SystemInfo {
                 ", memoryUsage='" + memoryUsage + '\'' +
                 ", diskInfo='" + diskInfo + '\'' +
                 ", diskUsagePercent=" + diskUsagePercent +
+                ", topProcesses='" + topProcesses + '\'' +
+                ", topMemProcesses='" + topMemProcesses + '\'' +
                 ", createdAt=" + createdAt +
                 '}';
     }

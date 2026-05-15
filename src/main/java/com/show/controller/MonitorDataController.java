@@ -42,6 +42,7 @@ public class MonitorDataController {
             @RequestParam(defaultValue = "cpuUsage") String sortBy,
             @RequestParam(defaultValue = "desc") String order) {
         try {
+
             List<SystemInfo> monitors = systemInfoMapper.findAll();
             // 清除密码信息，避免泄露
             for (SystemInfo monitor : monitors) {

@@ -8,6 +8,7 @@ import com.show.mapper.SystemInfoMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
@@ -15,180 +16,130 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.Base64;
 
+/**
+ * WebSocket ↔ SSH 桥接处理器
+ * 将浏览器的 WebSocket 连接映射到远程服务器的 SSH Shell，实现 Web 终端功能
+ */
+@Component
 public class SSHWebSocketHandler extends TextWebSocketHandler {
     private static final Logger log = LoggerFactory.getLogger(SSHWebSocketHandler.class);
-    private static final Map<String, SSHConnectionInfo> connections = new ConcurrentHashMap<>();
     private static final ObjectMapper objectMapper = new ObjectMapper();
-    
-    // 添加SystemInfoMapper的静态引用，需要通过setter方法注入
-    private static SystemInfoMapper systemInfoMapper;
-    
-    @Autowired
-    public void setSystemInfoMapper(SystemInfoMapper systemInfoMapper) {
-        SSHWebSocketHandler.systemInfoMapper = systemInfoMapper;
-    }
 
+    // sessionId → SSH连接信息，维护所有活跃的 WebSocket-SSH 映射
+    private final Map<String, SSHConnectionInfo> connections = new ConcurrentHashMap<>();
+
+    @Autowired
+    private SystemInfoMapper systemInfoMapper;
+
+    // ========== WebSocket 生命周期 ==========
+
+    // 连接建立：解析服务器ID → 建立 SSH 连接 → 启动输出流推送
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
-        String uri = session.getUri().toString();
-        String[] parts = uri.split("/");
-        String serverId = parts[parts.length - 1];
-        
-        // 如果URL末尾是"ssh"，说明没有提供服务器ID，需要从查询参数或消息中获取
-        if ("ssh".equals(serverId)) {
-            serverId = null;
-        }
-
+        String serverId = extractServerId(session);
         log.info("WebSocket连接已建立，服务器ID: {}", serverId);
 
-        // 如果没有从URL获取到服务器ID，则需要等待客户端发送连接信息
-        SystemInfo server = null;
-        if (serverId != null) {
-            server = systemInfoMapper.selectById(serverId);
-        }
-        
+        SystemInfo server = serverId != null ? systemInfoMapper.selectById(serverId) : null;
         if (server == null) {
             log.error("未找到服务器信息，ID: {}", serverId);
-
-            Map<String, Object> errorMessage = new HashMap<>();
-            errorMessage.put("type", "error");
-            errorMessage.put("content", "未找到服务器信息");
-            if (session.isOpen()) {
-                session.sendMessage(new TextMessage(objectMapper.writeValueAsString(errorMessage)));
-            }
-            
+            sendMessage(session, createMessage("error", "未找到服务器信息"));
             session.close();
             return;
         }
-        
-        String host = server.getHost();
-        int port = server.getPort();
-        String username = server.getUsername();
-        String password = server.getPassword();
 
-        // 建立SSH连接
+        // 建立SSH连接（设置 10 秒超时）
         JSch jsch = new JSch();
-        Session sshSession = jsch.getSession(username, host, port);
-        sshSession.setPassword(password);
+        Session sshSession = jsch.getSession(server.getUsername(), server.getHost(), server.getPort());
+        sshSession.setPassword(server.getPassword());
         sshSession.setConfig("StrictHostKeyChecking", "no");
-        // 设置编码以支持中文
         sshSession.setConfig("charset", "UTF-8");
-        sshSession.connect();
+        sshSession.setTimeout(10000);
+        sshSession.connect(10000);
 
-        // 打开一个通道
+        // 打开 shell 通道（设置 5 秒超时）
         ChannelShell channel = (ChannelShell) sshSession.openChannel("shell");
         channel.setPtyType("xterm");
-        // 设置终端环境变量以支持中文
         channel.setEnv("LANG", "zh_CN.UTF-8");
         channel.setEnv("LC_ALL", "zh_CN.UTF-8");
-        
-        // 获取输入输出流
+
         OutputStream inputToServer = channel.getOutputStream();
         PrintStream commander = new PrintStream(inputToServer, true, "UTF-8");
 
-        // 设置WebSocket会话和SSH会话的关联
         SSHConnectionInfo connectionInfo = new SSHConnectionInfo(session, sshSession, channel, inputToServer, commander);
         connections.put(session.getId(), connectionInfo);
 
-        // 启动从SSH服务器读取数据并发送到WebSocket客户端的线程
         channel.connect();
         startStreamingOutput(session, channel);
 
-        // 发送连接成功的消息
-        Map<String, Object> message = new HashMap<>();
-        message.put("type", "terminal");
-        message.put("content", "Connected to " + host + "\r\n");
-        sendMessage(session, message);
+        sendMessage(session, createMessage("terminal", "Connected to " + server.getHost() + "\r\n"));
     }
 
+    // 从 URL 路径中提取服务器ID（格式: /ssh/{serverId}）
+    private String extractServerId(WebSocketSession session) {
+        java.net.URI uri = session.getUri();
+        if (uri == null) return null;
+        String[] parts = uri.toString().split("/");
+        String last = parts[parts.length - 1];
+        return "ssh".equals(last) ? null : last;
+    }
+
+    // 启动后台线程：持续读取 SSH 通道输出并推送到 WebSocket 客户端
     private void startStreamingOutput(WebSocketSession session, Channel channel) {
-        new Thread(() -> {
+        Thread worker = new Thread(() -> {
+            InputStream in = null;
             try {
-                InputStream outFromServer = channel.getInputStream();
-                // 使用UTF-8编码读取SSH输出，以支持中文
-                InputStreamReader isr = new InputStreamReader(outFromServer, StandardCharsets.UTF_8);
-                BufferedReader reader = new BufferedReader(isr);
+                in = channel.getInputStream();
+                BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8));
                 char[] buffer = new char[1024];
-                int i;
-                while ((i = reader.read(buffer)) != -1 && channel.isConnected() && session.isOpen()) {
-                    String output = new String(buffer, 0, i);
-                    Map<String, Object> message = new HashMap<>();
-                    message.put("type", "terminal");
-                    message.put("content", output);
-                    
-                    try {
-                        sendMessage(session, message);
-                    } catch (Exception e) {
-                        log.error("发送消息到WebSocket客户端时出错: {}", e.getMessage());
-                        break;
-                    }
+                int len;
+                while ((len = reader.read(buffer)) != -1 && channel.isConnected() && session.isOpen()) {
+                    sendMessage(session, createMessage("terminal", new String(buffer, 0, len)));
                 }
             } catch (Exception e) {
-                log.error("读取SSH输出时出错: {}", e.getMessage());
+                if (!"Socket closed".equals(e.getMessage())) {
+                    log.error("读取SSH输出时出错: {}", e.getMessage());
+                }
+            } finally {
+                if (in != null) {
+                    try { in.close(); } catch (IOException ignored) {}
+                }
             }
-        }).start();
+        }, "ssh-stream-" + session.getId());
+        worker.setDaemon(true);
+        worker.start();
     }
 
+    // 收到 WebSocket 消息：解析 JSON 并分发到对应的 handler
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
-        // 检查WebSocket会话是否打开
-        if (!session.isOpen()) {
-            log.error("WebSocket会话已关闭，无法处理消息");
-            return;
-        }
+        if (!session.isOpen()) return;
 
         String payload = message.getPayload();
         JsonNode jsonNode = objectMapper.readTree(payload);
-
-        // 添加空指针检查
         if (jsonNode == null || !jsonNode.has("type")) {
             log.error("无效的消息格式: {}", payload);
             return;
         }
-        
-        String type = jsonNode.get("type").asText();
 
-        SSHConnectionInfo connectionInfo = connections.get(session.getId());
-        if (connectionInfo == null) {
+        SSHConnectionInfo conn = connections.get(session.getId());
+        if (conn == null) {
             log.error("未找到连接信息");
             return;
         }
 
+        String type = jsonNode.get("type").asText();
         switch (type) {
             case "command":
-                // 添加空指针检查
+                // 将用户输入的命令发送到 SSH 通道
                 if (jsonNode.has("content")) {
-                    handleCommand(connectionInfo, jsonNode.get("content").asText());
-                } else {
-                    log.error("命令消息缺少content字段");
+                    handleCommand(conn, jsonNode.get("content").asText());
                 }
                 break;
             case "resize":
+                // 终端窗口尺寸变化通知 PTY
                 if (jsonNode.has("cols") && jsonNode.has("rows")) {
-                    handleResize(connectionInfo, jsonNode.get("cols").asInt(), jsonNode.get("rows").asInt());
-                }
-                break;
-            case "fileList":
-                handleFileList(connectionInfo, jsonNode.has("path") ? jsonNode.get("path").asText() : "/");
-                break;
-            case "fileDownload":
-                // 添加空指针检查
-                if (jsonNode.has("fileName")) {
-                    handleFileDownload(connectionInfo, jsonNode.get("fileName").asText(), 
-                        jsonNode.has("path") ? jsonNode.get("path").asText() : "/");
-                } else {
-                    log.error("文件下载消息缺少fileName字段");
-                }
-                break;
-            case "fileDelete":
-                // 添加空指针检查
-                if (jsonNode.has("fileName")) {
-                    handleFileDelete(connectionInfo, jsonNode.get("fileName").asText(),
-                        jsonNode.has("path") ? jsonNode.get("path").asText() : "/");
-                } else {
-                    log.error("文件删除消息缺少fileName字段");
+                    handleResize(conn, jsonNode.get("cols").asInt(), jsonNode.get("rows").asInt());
                 }
                 break;
             default:
@@ -196,26 +147,22 @@ public class SSHWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private void handleCommand(SSHConnectionInfo connectionInfo, String command) {
+    // 发送命令到 SSH Shell
+    private void handleCommand(SSHConnectionInfo conn, String command) {
         try {
-            // 检查WebSocket会话是否打开
-            if (!connectionInfo.getWebSocketSession().isOpen()) {
-                log.error("WebSocket会话已关闭，无法发送命令");
-                return;
-            }
-
-            connectionInfo.getCommander().print(command);
-            connectionInfo.getCommander().flush();
+            if (!conn.getWebSocketSession().isOpen()) return;
+            conn.getCommander().print(command);
+            conn.getCommander().flush();
         } catch (Exception e) {
             log.error("发送命令时出错: {}", e.getMessage());
         }
     }
 
-    private void handleResize(SSHConnectionInfo connectionInfo, int cols, int rows) {
+    // 调整终端窗口大小（通知 SSH PTY）
+    private void handleResize(SSHConnectionInfo conn, int cols, int rows) {
         try {
-            ChannelShell channel = connectionInfo.getChannel();
+            ChannelShell channel = conn.getChannel();
             if (channel != null && channel.isConnected()) {
-                // 设置终端窗口大小（单位：字符数）
                 channel.setPtySize(cols, rows, cols * 8, rows * 18);
                 log.info("终端尺寸已调整: {}x{}", cols, rows);
             }
@@ -224,231 +171,60 @@ public class SSHWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
-    private void handleFileList(SSHConnectionInfo connectionInfo, String path) {
-        ChannelSftp sftpChannel = null;
-        try {
-            WebSocketSession session = connectionInfo.getWebSocketSession();
-            // 检查WebSocket会话是否打开
-            if (!session.isOpen()) {
-                log.error("WebSocket会话已关闭，无法处理文件列表请求");
-                return;
-            }
-
-            Session sshSession = connectionInfo.getSshSession();
-            sftpChannel = (ChannelSftp) sshSession.openChannel("sftp");
-            sftpChannel.connect();
-
-            // 设置SFTP通道的编码以支持中文文件名
-            sftpChannel.setFilenameEncoding("UTF-8");
-
-            Vector<ChannelSftp.LsEntry> files = sftpChannel.ls(path);
-            List<Map<String, Object>> fileList = new ArrayList<>();
-
-            for (ChannelSftp.LsEntry file : files) {
-                // 跳过当前目录和父目录的条目
-                if (".".equals(file.getFilename()) || "..".equals(file.getFilename())) {
-                    continue;
-                }
-
-                Map<String, Object> fileMap = new HashMap<>();
-                fileMap.put("name", file.getFilename());
-                fileMap.put("isDirectory", file.getAttrs().isDir());
-                fileMap.put("size", file.getAttrs().getSize());
-                fileMap.put("permissions", file.getAttrs().getPermissionsString());
-                fileList.add(fileMap);
-            }
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("type", "fileList");
-            response.put("files", fileList);
-
-            sendMessage(session, response);
-        } catch (Exception e) {
-            log.error("获取文件列表时出错", e);
-
-            // 发送错误信息给客户端
-            try {
-                Map<String, Object> errorMessage = new HashMap<>();
-                errorMessage.put("type", "error");
-                errorMessage.put("content", "获取文件列表失败: " + e.getMessage());
-                sendMessage(connectionInfo.getWebSocketSession(), errorMessage);
-            } catch (Exception sendException) {
-                log.error("发送错误消息时出错: {}", sendException.getMessage());
-            }
-        } finally {
-            if (sftpChannel != null && sftpChannel.isConnected()) {
-                try {
-                    sftpChannel.disconnect();
-                } catch (Exception e) {
-                    log.error("关闭SFTP通道时出错: {}", e.getMessage());
-                }
-            }
-        }
-    }
-
-    private void handleFileDownload(SSHConnectionInfo connectionInfo, String fileName, String path) {
-        ChannelSftp sftpChannel = null;
-        try {
-            WebSocketSession session = connectionInfo.getWebSocketSession();
-            // 检查WebSocket会话是否打开
-            if (!session.isOpen()) {
-                log.error("WebSocket会话已关闭，无法处理文件下载请求");
-                return;
-            }
-
-            Session sshSession = connectionInfo.getSshSession();
-            sftpChannel = (ChannelSftp) sshSession.openChannel("sftp");
-            sftpChannel.connect();
-
-            // 设置SFTP通道的编码以支持中文文件名
-            sftpChannel.setFilenameEncoding("UTF-8");
-
-            String fullPath = path.equals("/") ? "/" + fileName : path + "/" + fileName;
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            sftpChannel.get(fullPath, baos);
-
-            // 将文件内容编码为Base64
-            String base64Content = Base64.getEncoder().encodeToString(baos.toByteArray());
-
-            Map<String, Object> response = new HashMap<>();
-            response.put("type", "fileDownload");
-            response.put("fileName", fileName);
-            response.put("content", base64Content);
-
-            sendMessage(session, response);
-        } catch (Exception e) {
-            log.error("下载文件时出错", e);
-
-            // 发送错误信息给客户端
-            try {
-                Map<String, Object> errorMessage = new HashMap<>();
-                errorMessage.put("type", "error");
-                errorMessage.put("content", "文件下载失败: " + e.getMessage());
-                sendMessage(connectionInfo.getWebSocketSession(), errorMessage);
-            } catch (Exception sendException) {
-                log.error("发送错误消息时出错: {}", sendException.getMessage());
-            }
-        } finally {
-            if (sftpChannel != null && sftpChannel.isConnected()) {
-                try {
-                    sftpChannel.disconnect();
-                } catch (Exception e) {
-                    log.error("关闭SFTP通道时出错: {}", e.getMessage());
-                }
-            }
-        }
-    }
-
-    private void handleFileDelete(SSHConnectionInfo connectionInfo, String fileName, String path) {
-        ChannelSftp sftpChannel = null;
-        try {
-            WebSocketSession session = connectionInfo.getWebSocketSession();
-            // 检查WebSocket会话是否打开
-            if (!session.isOpen()) {
-                log.error("WebSocket会话已关闭，无法处理文件删除请求");
-                return;
-            }
-
-            Session sshSession = connectionInfo.getSshSession();
-            sftpChannel = (ChannelSftp) sshSession.openChannel("sftp");
-            sftpChannel.connect();
-
-            // 设置SFTP通道的编码以支持中文文件名
-            sftpChannel.setFilenameEncoding("UTF-8");
-
-            String fullPath = path.equals("/") ? "/" + fileName : path + "/" + fileName;
-            sftpChannel.rm(fullPath);
-
-            // 发送删除成功的消息
-            Map<String, Object> response = new HashMap<>();
-            response.put("type", "fileOperation");
-            response.put("message", "文件删除成功: " + fileName);
-
-            sendMessage(session, response);
-        } catch (Exception e) {
-            log.error("删除文件时出错", e);
-
-            // 发送错误信息给客户端
-            try {
-                Map<String, Object> errorMessage = new HashMap<>();
-                errorMessage.put("type", "error");
-                errorMessage.put("content", "文件删除失败: " + e.getMessage());
-                sendMessage(connectionInfo.getWebSocketSession(), errorMessage);
-            } catch (Exception sendException) {
-                log.error("发送错误消息时出错: {}", sendException.getMessage());
-            }
-        } finally {
-            if (sftpChannel != null && sftpChannel.isConnected()) {
-                try {
-                    sftpChannel.disconnect();
-                } catch (Exception e) {
-                    log.error("关闭SFTP通道时出错: {}", e.getMessage());
-                }
-            }
-        }
-    }
-
+    // WebSocket 关闭：清理 SSH 连接资源
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         log.info("WebSocket连接已关闭: {}, 状态: {}", session.getId(), status);
-        SSHConnectionInfo connectionInfo = connections.remove(session.getId());
-        if (connectionInfo != null) {
-            Channel channel = connectionInfo.getChannel();
-            Session sshSession = connectionInfo.getSshSession();
-            
-            // 安全地关闭连接
-            try {
-                if (channel != null && channel.isConnected()) {
-                    channel.disconnect();
-                }
-                
-                if (sshSession != null && sshSession.isConnected()) {
-                    sshSession.disconnect();
-                }
-            } catch (Exception e) {
-                log.error("关闭SSH连接时出错: {}", e.getMessage());
-            }
-        }
+        cleanup(session.getId());
     }
 
+    // WebSocket 传输异常：清理 SSH 连接资源
     @Override
     public void handleTransportError(WebSocketSession session, Throwable exception) throws Exception {
         log.error("WebSocket传输错误", exception);
-        
-        // 从连接映射中移除并关闭相关资源
-        SSHConnectionInfo connectionInfo = connections.remove(session.getId());
-        if (connectionInfo != null) {
-            Channel channel = connectionInfo.getChannel();
-            Session sshSession = connectionInfo.getSshSession();
-            
-            try {
-                if (channel != null && channel.isConnected()) {
-                    channel.disconnect();
-                }
-                
-                if (sshSession != null && sshSession.isConnected()) {
-                    sshSession.disconnect();
-                }
-            } catch (Exception e) {
-                log.error("处理传输错误时关闭连接出错: {}", e.getMessage());
-            }
+        cleanup(session.getId());
+    }
+
+    // 移除连接映射并关闭 SSH 通道和会话
+    private void cleanup(String sessionId) {
+        SSHConnectionInfo conn = connections.remove(sessionId);
+        if (conn == null) return;
+        quietlyClose(conn.getChannel());
+        quietlyClose(conn.getSshSession());
+    }
+
+    // 安全关闭 Channel（忽略已关闭等异常）
+    private void quietlyClose(Channel channel) {
+        try {
+            if (channel != null && channel.isConnected()) channel.disconnect();
+        } catch (Exception e) {
+            log.debug("关闭通道时忽略异常", e);
         }
     }
-    
-    /**
-     * 安全地发送消息到WebSocket客户端
-     * @param session WebSocket会话
-     * @param message 要发送的消息
-     */
+
+    // 安全关闭 SSH Session（忽略已关闭等异常）
+    private void quietlyClose(Session sshSession) {
+        try {
+            if (sshSession != null && sshSession.isConnected()) sshSession.disconnect();
+        } catch (Exception e) {
+            log.debug("关闭SSH会话时忽略异常", e);
+        }
+    }
+
+    // 构造 {type, content} 格式的 JSON 消息
+    private static Map<String, Object> createMessage(String type, String content) {
+        Map<String, Object> msg = new HashMap<>();
+        msg.put("type", type);
+        msg.put("content", content);
+        return msg;
+    }
+
+    // 发送 JSON 消息到 WebSocket 客户端（synchronized 防止并发写入冲突）
     private synchronized void sendMessage(WebSocketSession session, Map<String, Object> message) {
         try {
             if (session.isOpen()) {
                 session.sendMessage(new TextMessage(objectMapper.writeValueAsString(message)));
-            } else {
-                log.error("WebSocket会话已关闭，无法发送消息");
             }
-        } catch (IllegalStateException e) {
-            log.error("WebSocket状态错误", e);
         } catch (Exception e) {
             log.error("发送消息到WebSocket客户端时出错", e);
         }

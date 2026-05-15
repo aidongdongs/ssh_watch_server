@@ -20,6 +20,7 @@ public class MonitorController {
     @Autowired
     private SystemInfoMapper systemMonitorMapper;
 
+    // 页面监控数据接口
     @GetMapping("/monitor/list")
     public String listMonitors(Model model) {
         List<SystemInfo> monitors = systemMonitorMapper.findAll();
