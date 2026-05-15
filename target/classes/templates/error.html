@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>页面未找到 - 错误</title>
+    <link th:href="@{/bootstrap-5.0.0-beta3-dist/css/bootstrap.min.css}" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .error-container {
+            max-width: 600px;
+            margin: 100px auto;
+            text-align: center;
+            padding: 2rem;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.1);
+        }
+        .error-code {
+            font-size: 5rem;
+            font-weight: bold;
+            color: #dc3545;
+            margin-bottom: 1rem;
+        }
+        .error-message {
+            font-size: 2rem;
+            color: #343a40;
+            margin-bottom: 1rem;
+        }
+        .error-details {
+            font-size: 1.2rem;
+            color: #6c757d;
+            margin-bottom: 2rem;
+        }
+        .btn-home {
+            padding: 0.75rem 1.5rem;
+            font-size: 1.1rem;
+            border-radius: 50px;
+        }
+    </style>
+</head>
+<body>
+    <div class="error-container">
+        <div class="error-code">404</div>
+        <div class="error-message" th:text="${errorMessage ?: '页面未找到'}">页面未找到</div>
+        <div class="error-details" th:text="${errorDetails ?: '抱歉，您访问的页面不存在。'}">抱歉，您访问的页面不存在。</div>
+        <a href="/" class="btn btn-primary btn-home">返回首页</a>
+    </div>
+</body>
+</html>

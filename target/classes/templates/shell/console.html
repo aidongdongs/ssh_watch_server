@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Web Shell - <span th:text="${server.host + ':' + server.port}"></span></title>
+    <!-- xterm.js 终端模拟器核心样式 -->
+    <link rel="stylesheet" th:href="@{/js/xterm.min.css}" />
+    <!-- 自定义终端主题与布局样式 -->
+    <link th:href="@{/shell/console.css}" rel="stylesheet">
+</head>
+<body>
+    <div class="terminal-container">
+        <!-- 主面板：包含终端头部和终端显示区域 -->
+        <div class="main-panel">
+            <!-- 终端头部：连接信息、主题切换、关闭按钮 -->
+            <div class="terminal-header">
+                <div class="header-left">
+                    <span>💻 Web Shell 连接</span>
+                    <span class="server-info ms-3" th:text="${server.host + ':' + server.port + ' (' + server.username + ')'}"></span>
+                </div>
+                <div class="header-right">
+                    <!-- 主题选择器：支持暗色/亮色/绿色/德古拉/Nord/Gruvbox 六种主题 -->
+                    <div class="theme-selector">
+                        <button class="theme-btn theme-btn-dark active" data-theme="dark" title="深色主题"></button>
+                        <button class="theme-btn theme-btn-light" data-theme="light" title="浅色主题"></button>
+                        <button class="theme-btn theme-btn-green" data-theme="green" title="绿色主题"></button>
+                        <button class="theme-btn theme-btn-dracula" data-theme="dracula" title="德古拉主题"></button>
+                        <button class="theme-btn theme-btn-nord" data-theme="nord" title="Nord 主题"></button>
+                        <button class="theme-btn theme-btn-gruvbox" data-theme="gruvbox" title="Gruvbox 主题"></button>
+                    </div>
+                    <!-- 关闭连接按钮 -->
+                    <button class="close-btn" onclick="closeShell()">×</button>
+                </div>
+            </div>
+            <!-- 终端主体：xterm.js 实例将挂载到此 div -->
+            <div class="terminal-body">
+                <div id="terminal"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- xterm.js 终端模拟器核心库 -->
+    <script th:src="@{/js/xterm.min.js}"></script>
+    <!-- Thymeleaf 内联脚本：从服务端注入当前连接的服务器信息 -->
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const serverId = /*[[${server.id}]]*/ '0';
+        const serverHost = /*[[${server.host}]]*/ '';
+        const serverPort = /*[[${server.port}]]*/ 22;
+        const serverUsername = /*[[${server.username}]]*/ '';
+        const serverPassword = /*[[${server.password}]]*/ '';
+        /*]]>*/
+    </script>
+    <!-- 终端业务逻辑：WebSocket 连接、终端渲染、主题切换等 -->
+    <script th:src="@{/shell/console.js}"></script>
+</body>
+</html>

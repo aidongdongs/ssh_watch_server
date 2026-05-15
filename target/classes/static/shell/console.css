@@ -1,0 +1,242 @@
+/* ========== CSS Custom Properties (Dark - 默认) ========== */
+:root {
+    --bg-color: #1e1e1e;
+    --text-color: #cccccc;
+    --panel-bg: #2d2d30;
+    --header-bg-start: #2c3e50;
+    --header-bg-end: #1a2a3a;
+    --header-border: #3c3c3c;
+    --server-info-color: #a9a9a9;
+    --close-btn-color: #cccccc;
+    --close-hover: #ff6b6b;
+}
+
+/* ========== Light Theme ========== */
+body.theme-light {
+    --bg-color: #f8f9fa;
+    --text-color: #212529;
+    --panel-bg: #ffffff;
+    --header-bg-start: #e9ecef;
+    --header-bg-end: #dee2e6;
+    --header-border: #ced4da;
+    --server-info-color: #6c757d;
+    --close-btn-color: #212529;
+    --close-hover: #dc3545;
+}
+
+/* ========== Green Theme ========== */
+body.theme-green {
+    --bg-color: #000000;
+    --text-color: #00ff00;
+    --panel-bg: #0d0d0d;
+    --header-bg-start: #001a00;
+    --header-bg-end: #000d00;
+    --header-border: #003300;
+    --server-info-color: #009900;
+    --close-btn-color: #00ff00;
+    --close-hover: #ff3333;
+}
+
+/* ========== Dracula Theme ========== */
+body.theme-dracula {
+    --bg-color: #282a36;
+    --text-color: #f8f8f2;
+    --panel-bg: #1e1f29;
+    --header-bg-start: #44475a;
+    --header-bg-end: #1e1f29;
+    --header-border: #44475a;
+    --server-info-color: #6272a4;
+    --close-btn-color: #f8f8f2;
+    --close-hover: #ff5555;
+}
+
+/* ========== Nord Theme ========== */
+body.theme-nord {
+    --bg-color: #2e3440;
+    --text-color: #d8dee9;
+    --panel-bg: #3b4252;
+    --header-bg-start: #3b4252;
+    --header-bg-end: #2e3440;
+    --header-border: #4c566a;
+    --server-info-color: #616e88;
+    --close-btn-color: #d8dee9;
+    --close-hover: #bf616a;
+}
+
+/* ========== Gruvbox Dark Theme ========== */
+body.theme-gruvbox {
+    --bg-color: #282828;
+    --text-color: #ebdbb2;
+    --panel-bg: #1d2021;
+    --header-bg-start: #3c3836;
+    --header-bg-end: #1d2021;
+    --header-border: #3c3836;
+    --server-info-color: #a89984;
+    --close-btn-color: #ebdbb2;
+    --close-hover: #cc241d;
+}
+
+/* ========== Base Reset ========== */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html, body {
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    overflow: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.terminal-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.main-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--panel-bg);
+    overflow: hidden;
+    transition: background-color 0.3s ease;
+}
+
+.terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(90deg, var(--header-bg-start), var(--header-bg-end));
+    border-bottom: 1px solid var(--header-border);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.terminal-header .header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.terminal-header .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.server-info {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    color: var(--server-info-color);
+    transition: color 0.3s ease;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--close-btn-color);
+    transition: color 0.2s;
+    line-height: 1;
+}
+
+.close-btn:hover {
+    color: var(--close-hover);
+}
+
+.terminal-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    background-color: var(--panel-bg);
+    min-height: 0;
+    transition: background-color 0.3s ease;
+}
+
+#terminal {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+    min-height: 0;
+    padding: 0;
+}
+#terminal .xterm {
+    height: 100%;
+}
+#terminal .xterm-viewport {
+    height: 100%;
+    scrollbar-width: thin;
+}
+#terminal .xterm-screen {
+    height: 100%;
+}
+
+/* ========== 主题选择器 ========== */
+.theme-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-right: 4px;
+}
+
+.theme-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.theme-btn:hover {
+    transform: scale(1.25);
+}
+
+.theme-btn.active {
+    border-color: var(--close-btn-color);
+    box-shadow: 0 0 6px var(--close-btn-color);
+}
+
+.theme-btn-dark {
+    background-color: #1e1e1e;
+    border-color: #555;
+}
+
+.theme-btn-light {
+    background-color: #e8e8e8;
+    border-color: #999;
+}
+
+.theme-btn-green {
+    background-color: #00cc00;
+    border-color: #006600;
+}
+
+.theme-btn-dracula {
+    background-color: #282a36;
+    border-color: #bd93f9;
+}
+
+.theme-btn-nord {
+    background-color: #2e3440;
+    border-color: #81a1c1;
+}
+
+.theme-btn-gruvbox {
+    background-color: #282828;
+    border-color: #ebdbb2;
+}

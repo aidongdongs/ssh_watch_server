@@ -1,0 +1,1218 @@
+﻿<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>服务器监控列表</title>
+    <link th:href="@{/bootstrap-5.0.0-beta3-dist/css/bootstrap.min.css}" rel="stylesheet">
+    <style>
+        .page-header {
+            background-color: #ffffff;
+            border-radius: 8px;
+            box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .server-card {
+            margin-bottom: 20px;
+            border: none;
+            border-radius: 8px;
+            background: linear-gradient(145deg, #ffffff, #f0f2f5);
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+            border: 1px solid rgba(0, 0, 0, 0.03);
+            overflow: hidden;
+        }
+        
+        .server-card:hover {
+            box-shadow: 0 6px 15px rgba(0, 0, 0, 0.12);
+            transform: translateY(-3px);
+        }
+        
+        /* 错误状态下的主机卡片样式 */
+        .server-card.error-state {
+            background: linear-gradient(145deg, #fff5f5, #f8d7da);
+            border: 1px solid #f5c6cb;
+        }
+        
+        .server-card.error-state .card-header {
+            background: linear-gradient(120deg, #dc3545, #bd2130);
+        }
+        
+        .card-header {
+            font-weight: 600;
+            background: linear-gradient(120deg, #2c3e50, #1a2a3a);
+            color: white;
+            border-radius: 8px 8px 0 0 !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 1rem 1.25rem;
+        }
+        
+        .metric-badge {
+            margin-right: 8px;
+            margin-bottom: 8px;
+            padding: 8px 16px;
+            border-radius: 50px;
+            font-weight: 500;
+            font-size: 0.85rem;
+            display: inline-flex;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(5px);
+            cursor: pointer;
+        }
+        
+        .metric-badge:hover {
+            transform: translateY(-2px) scale(1.02);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.12);
+        }
+        
+        .disk-table {
+            margin-top: 12px;
+            border-radius: 6px;
+            overflow: hidden;
+            box-shadow: 0 1px 6px rgba(0, 0, 0, 0.03);
+        }
+        
+        .disk-table th {
+            background: linear-gradient(120deg, #f1f3f5, #e9ecef);
+        }
+        
+        .detail-card {
+            border-radius: 8px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(0, 0, 0, 0.03);
+            transition: all 0.3s ease;
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+        }
+        
+        .detail-card:hover {
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+        
+        .detail-card .card-header {
+            border-radius: 8px 8px 0 0 !important;
+            padding: 0.8rem 1.25rem;
+            font-weight: 600;
+            color: white;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+        }
+        
+        .detail-card .card-header.bg-primary {
+            background: linear-gradient(120deg, #0062cc, #007bff);
+        }
+        
+        .detail-card .card-header.bg-info {
+            background: linear-gradient(120deg, #117a8b, #17a2b8);
+        }
+        
+        .detail-card .card-header.bg-success {
+            background: linear-gradient(120deg, #1e7e34, #28a745);
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+            border-radius: 8px;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.08);
+        }
+        
+        .refresh-btn {
+            margin-right: 8px;
+        }
+        
+        .action-buttons .btn {
+            margin-left: 4px;
+            border-radius: 5px;
+            font-weight: 500;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+        
+        .cpu-badge {
+            background: linear-gradient(120deg, #28a745, #20c997);
+            color: white;
+            box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+        }
+        
+        .cpu-warning {
+            background: linear-gradient(120deg, #ffc107, #fd7e14);
+            color: white;
+            box-shadow: 0 2px 4px rgba(255, 193, 7, 0.2);
+        }
+        
+        .cpu-danger {
+            background: linear-gradient(120deg, #dc3545, #e83e8c);
+            color: white;
+            box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+        }
+        
+        .memory-badge {
+            background: linear-gradient(120deg, #17a2b8, #6f42c1);
+            color: white;
+            box-shadow: 0 2px 4px rgba(23, 162, 184, 0.2);
+        }
+        
+        .disk-badge {
+            background: linear-gradient(120deg, #6c757d, #495057);
+            color: white;
+            box-shadow: 0 2px 4px rgba(108, 117, 125, 0.2);
+        }
+        
+        .disk-danger {
+            background: linear-gradient(120deg, #dc3545, #e83e8c);
+            color: white;
+            box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
+        }
+        
+        .disk-warning {
+            background: linear-gradient(120deg, #ffc107, #fd7e14);
+            color: white;
+            box-shadow: 0 2px 4px rgba(255, 193, 7, 0.2);
+        }
+        
+        .disk-success {
+            background: linear-gradient(120deg, #28a745, #20c997);
+            color: white;
+            box-shadow: 0 2px 4px rgba(40, 167, 69, 0.2);
+        }
+        
+        .progress {
+            height: 8px;
+            border-radius: 4px;
+            background-color: #e9ecef;
+            box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
+        
+        .progress-bar.cpu-high {
+            background: linear-gradient(90deg, #dc3545, #e83e8c);
+        }
+        
+        .progress-bar.cpu-medium {
+            background: linear-gradient(90deg, #ffc107, #fd7e14);
+        }
+        
+        .progress-bar.cpu-low {
+            background: linear-gradient(90deg, #28a745, #20c997);
+        }
+        
+        .section-title {
+            border-left: 3px solid #007bff;
+            padding-left: 10px;
+            margin-bottom: 15px;
+            font-weight: 600;
+            color: #343a40;
+            font-size: 1.1rem;
+        }
+        
+        .detail-toggle {
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.25rem;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.02);
+        }
+        
+        .disk-partitions {
+            background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1.25rem;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.02);
+        }
+
+        .cpu-processes {
+            background: #1e1e1e;
+            border-radius: 6px;
+            padding: 0.4rem 0.6rem;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.02);
+        }
+        .cpu-processes .section-title {
+            color: #e0e0e0;
+            border-left-color: #ff6b6b;
+            margin-bottom: 0.25rem !important;
+            padding-left: 6px;
+        }
+        .cpu-processes .metric-detail-content {
+            background: #2d2d2d;
+            border-radius: 3px;
+            border: 1px solid #3c3c3c;
+        }
+        .cpu-processes .table {
+            color: #d4d4d4;
+        }
+        .cpu-processes .table th {
+            border-bottom: 1px solid #3c3c3c;
+            background: transparent;
+        }
+        .cpu-processes .table td {
+            border-top: 1px solid #333;
+            border-bottom: 1px solid #333;
+        }
+        .cpu-processes .table tbody tr:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+
+        .processes-row {
+            display: flex;
+            gap: 0.6rem;
+        }
+        .processes-row .cpu-processes {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        /* 科技感字体样式 */
+        .tech-font {
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            letter-spacing: 0.5px;
+        }
+        
+        /* 指标详情模态框样式 */
+        .modal-content {
+            border-radius: 8px;
+            border: none;
+            box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+        }
+        
+        .modal-header {
+            background: linear-gradient(120deg, #2c3e50, #1a2a3a);
+            color: white;
+            border-radius: 8px 8px 0 0 !important;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 0.8rem 1.25rem;
+        }
+        
+        .modal-body {
+            background: linear-gradient(145deg, #ffffff, #f8f9fa);
+        }
+        
+        .modal-footer {
+            background: linear-gradient(145deg, #f8f9fa, #e9ecef);
+            border-radius: 0 0 8px 8px !important;
+            border-top: 1px solid rgba(0, 0, 0, 0.03);
+        }
+        
+        /* 指标详情内容样式 */
+        .metric-detail-content {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            border-radius: 6px;
+            padding: 12px;
+            font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+            max-height: 350px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        /* IP查询相关样式 */
+        .ip-search-container {
+            margin-bottom: 15px;
+        }
+        
+        .ip-search-input {
+            border-radius: 6px 0 0 6px;
+            border-right: none;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.9rem;
+        }
+        
+        .ip-search-btn {
+            border-radius: 0 6px 6px 0;
+            padding: 0.375rem 0.75rem;
+            font-size: 0.9rem;
+        }
+        
+        /* 缩小服务器信息区域 */
+        .server-info {
+            font-size: 0.9rem;
+        }
+        
+        .server-info p {
+            margin-bottom: 0.75rem;
+        }
+        
+        /* 缩小表格字体 */
+        .table {
+            font-size: 0.85rem;
+        }
+        
+        .table th,
+        .table td {
+            padding: 0.5rem;
+        }
+        
+        /* 缩小徽章字体和间距 */
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.4em 0.7em;
+        }
+        
+        /* 缩小按钮 */
+        .btn {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.85rem;
+            border-radius: 0.25rem;
+        }
+        
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        /* 缩小表单元素 */
+        .form-control,
+        .form-select {
+            padding: 0.375rem 0.75rem;
+            font-size: 0.85rem;
+            border-radius: 0.25rem;
+        }
+        
+        .form-select-sm {
+            padding: 0.25rem 0.75rem;
+            font-size: 0.8rem;
+        }
+        
+        /* 缩小标题 */
+        h2 {
+            font-size: 1.75rem;
+        }
+        
+        h4 {
+            font-size: 1.25rem;
+        }
+        
+        h5 {
+            font-size: 1.1rem;
+        }
+        
+        /* 缩小排序按钮 */
+        .sort-button {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.8rem;
+        }
+
+        /* 多列网格布局 */
+        .monitor-grid {
+            display: grid;
+            gap: 1rem;
+        }
+        .monitor-grid.grid-col-1 {
+            grid-template-columns: 1fr;
+        }
+        .monitor-grid.grid-col-2 {
+            grid-template-columns: 1fr 1fr;
+        }
+        .column-btn.active {
+            border-color: #0d6efd;
+            background-color: #0d6efd;
+            color: #fff;
+        }
+        @media (max-width: 768px) {
+            .monitor-grid.grid-col-2 {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* 双列模式下内部组件自适应 */
+        .monitor-grid.grid-col-2 .server-card .card-header {
+            padding: 0.6rem 0.8rem;
+        }
+        .monitor-grid.grid-col-2 .server-card .card-header .h6 {
+            font-size: 0.9rem;
+        }
+        .monitor-grid.grid-col-2 .server-card .last-update {
+            font-size: 0.65rem !important;
+        }
+        .monitor-grid.grid-col-2 .server-card .metric-badge {
+            font-size: 0.72rem;
+            padding: 4px 10px;
+            margin-right: 4px;
+            margin-bottom: 4px;
+        }
+        .monitor-grid.grid-col-2 .server-card .section-title {
+            font-size: 0.9rem;
+        }
+        .monitor-grid.grid-col-2 .server-card .server-info p {
+            font-size: 0.8rem;
+            margin-bottom: 0.4rem;
+        }
+        .monitor-grid.grid-col-2 .server-card .table {
+            font-size: 0.72rem;
+        }
+        .monitor-grid.grid-col-2 .server-card .table th,
+        .monitor-grid.grid-col-2 .server-card .table td {
+            padding: 0.25rem 0.4rem;
+        }
+        .monitor-grid.grid-col-2 .server-card .progress {
+            height: 5px;
+        }
+        .monitor-grid.grid-col-2 .server-card .card-body {
+            padding: 0.5rem 0.8rem;
+        }
+        .monitor-grid.grid-col-2 .server-card .disk-partitions {
+            padding: 0.5rem 0.6rem;
+        }
+        .monitor-grid.grid-col-2 .server-card .cpu-processes {
+            padding: 0.25rem 0.4rem;
+        }
+        .monitor-grid.grid-col-2 .server-card .cpu-processes .section-title {
+            font-size: 0.68rem;
+            margin-bottom: 0.15rem !important;
+        }
+        .monitor-grid.grid-col-2 .server-card .cpu-processes .metric-detail-content {
+            padding: 2px 4px !important;
+        }
+        .monitor-grid.grid-col-2 .server-card .cpu-processes .table {
+            font-size: 0.62rem;
+        }
+        .monitor-grid.grid-col-2 .server-card .cpu-processes .table th,
+        .monitor-grid.grid-col-2 .server-card .cpu-processes .table td {
+            padding: 0 1px !important;
+            line-height: 1.4 !important;
+        }
+        .monitor-grid.grid-col-2 .server-card .action-buttons .btn {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.35rem;
+        }
+    </style>
+</head>
+<body class="bg-light">
+<div class="container py-3">
+    <!-- 页面头部 -->
+    <div class="page-header">
+        <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+            <div>
+                <h3 class="mb-1">📊 服务器监控列表</h3>
+                <p class="text-muted mb-2 mb-md-0" id="serverCount" style="font-size: 0.9rem;">
+                    正在监控 <span id="serverCountNumber">0</span> 台服务器，
+                    <span class="text-success">成功: <span id="successCount">0</span></span>，
+                    <span class="text-danger">异常: <span id="errorCount">0</span></span>
+                </p>
+            </div>
+            <div class="d-flex flex-wrap align-items-center">
+                <button class="btn btn-outline-secondary refresh-btn btn-sm me-1" onclick="refreshMonitorData()" style="font-size: 0.8rem;">
+                    🔄 刷新
+                </button>
+                <div class="collecting-status me-1" id="collectingStatus" style="font-size: 0.8rem; display: none;">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true" style="width: 0.8rem; height: 0.8rem;"></span>
+                    采集中
+                </div>
+                <a th:href="@{/service/add}" class="btn btn-primary btn-sm" style="font-size: 0.8rem;">➕ 添加</a>
+            </div>
+        </div>
+    </div>
+    
+    <!-- IP查询区域 -->
+    <div class="ip-search-container">
+        <div class="input-group">
+            <input type="text" class="form-control ip-search-input" id="ipSearchInput" placeholder="输入IP或主机名模糊搜索">
+            <button class="btn btn-primary ip-search-btn btn-sm" type="button" onclick="searchByIP()" style="font-size: 0.85rem;">🔍 搜索</button>
+        </div>
+    </div>
+    
+    <!-- 排序按钮 -->
+    <div class="sort-buttons mb-3">
+        <button class="btn btn-outline-secondary btn-sm sort-button" onclick="setSort('cpuUsage')" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
+            按CPU <span class="sort-indicator" id="sort-cpuUsage">↓</span>
+        </button>
+        <button class="btn btn-outline-secondary btn-sm sort-button ms-1" onclick="setSort('memoryUsage')" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
+            按内存 <span class="sort-indicator" id="sort-memoryUsage"></span>
+        </button>
+        <button class="btn btn-outline-secondary btn-sm sort-button ms-1" onclick="setSort('diskUsagePercent')" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
+            按磁盘 <span class="sort-indicator" id="sort-diskUsagePercent"></span>
+        </button>
+        <button class="btn btn-outline-secondary btn-sm sort-button ms-1" onclick="setSort('createdAt')" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">
+            按时间 <span class="sort-indicator" id="sort-createdAt"></span>
+        </button>
+        <span class="ms-2" style="font-size: 0.75rem; color: #6c757d;">排列:</span>
+        <button class="btn btn-sm btn-outline-secondary column-btn active ms-1" data-col="1" onclick="setColumns(1)" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">1列</button>
+        <button class="btn btn-sm btn-outline-secondary column-btn" data-col="2" onclick="setColumns(2)" style="font-size: 0.75rem; padding: 0.2rem 0.4rem;">2列</button>
+    </div>
+
+    <div id="monitorList">
+        <!-- 服务器列表将通过AJAX动态加载 -->
+    </div>
+</div>
+
+<!-- 指标详情模态框 -->
+<div class="modal fade" id="metricDetailModal" tabindex="-1" aria-labelledby="metricDetailModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="metricDetailModalLabel">指标详情</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="metric-detail-content" id="metricDetailContent"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:src="@{/bootstrap-5.0.0-beta3-dist/js/bootstrap.bundle.min.js}"></script>
+<script>
+    // 设置排序
+    var currentSortBy = 'cpuUsage';
+    var currentOrder = 'desc';
+
+    // 列数
+    var currentColumns = 1;
+    
+    // 当前选中的服务器信息
+    var currentServer = null;
+    
+    // 页面加载完成后初始化
+    document.addEventListener('DOMContentLoaded', function() {
+        // 首次加载数据
+        loadMonitorData();
+        
+        // 添加回车键查询支持
+        document.getElementById('ipSearchInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                searchByIP();
+            }
+        });
+        
+        // 初始化时隐藏采集中状态指示器
+        document.getElementById('collectingStatus').style.display = 'none';
+    });
+    
+    // 加载监控数据
+    function loadMonitorData() {
+        fetch(`/monitor/list/data?sortBy=${currentSortBy}&order=${currentOrder}`)
+            .then(response => {
+                // 检查响应状态
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                renderMonitorList(data);
+                updateSortIndicators();
+            })
+            .catch(error => {
+                console.error('加载监控数据失败:', error);
+                // 提供更友好的错误信息和重试按钮
+                document.getElementById('monitorList').innerHTML = `
+                    <div class="alert alert-danger d-flex flex-column align-items-center">
+                        <h5 class="mb-2">❌ 加载监控数据失败</h5>
+                        <p class="mb-2" style="font-size: 0.9rem;">错误信息: ${error.message}</p>
+                        <div>
+                            <button class="btn btn-primary btn-sm me-2" onclick="loadMonitorData()" style="font-size: 0.8rem;">🔄 重试</button>
+                            <button class="btn btn-secondary btn-sm" onclick="location.reload()" style="font-size: 0.8rem;">🔄 刷新</button>
+                        </div>
+                    </div>
+                `;
+            });
+    }
+    
+    // 模糊搜索主机
+    function searchByIP() {
+        const keyword = document.getElementById('ipSearchInput').value.trim();
+        if (!keyword) {
+            loadMonitorData();
+            return;
+        }
+
+        // 显示加载状态
+        document.getElementById('monitorList').innerHTML = `
+            <div class="text-center py-5">
+                <div class="spinner-border" role="status">
+                    <span class="visually-hidden">加载中...</span>
+                </div>
+                <p class="mt-2">正在搜索 <strong>${keyword}</strong>...</p>
+            </div>
+        `;
+
+        // 发送查询请求
+        fetch(`/monitor/search?host=${encodeURIComponent(keyword)}`)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data && data.length > 0) {
+                    renderMonitorList(data);
+                } else {
+                    document.getElementById('monitorList').innerHTML = `
+                        <div class="alert alert-warning text-center">
+                            <h5 class="mb-2">🔍 未找到匹配的主机</h5>
+                            <p class="mb-2" style="font-size: 0.9rem;">未找到包含 <strong>${keyword}</strong> 的主机</p>
+                            <button class="btn btn-primary btn-sm" onclick="loadMonitorData()" style="font-size: 0.8rem;">所有主机</button>
+                        </div>
+                    `;
+                }
+            })
+            .catch(error => {
+                console.error('搜索主机失败:', error);
+                document.getElementById('monitorList').innerHTML = `
+                    <div class="alert alert-danger d-flex flex-column align-items-center">
+                        <h5 class="mb-2">❌ 搜索主机失败</h5>
+                        <p class="mb-2" style="font-size: 0.9rem;">错误信息: ${error.message}</p>
+                        <div>
+                            <button class="btn btn-primary btn-sm me-2" onclick="searchByIP()" style="font-size: 0.8rem;">🔄 重试</button>
+                            <button class="btn btn-secondary btn-sm" onclick="loadMonitorData()" style="font-size: 0.8rem;">所有主机</button>
+                        </div>
+                    </div>
+                `;
+            });
+    }
+    
+    // 渲染监控列表
+    function renderMonitorList(monitors) {
+        // 统计服务器状态
+        let totalCount = 0;
+        let successCount = 0;
+        let errorCount = 0;
+        
+        if (!monitors || monitors.length === 0) {
+            document.getElementById('monitorList').innerHTML = `
+                <div class="no-data">
+                    <h5 class="text-muted">暂无服务器监控数据</h5>
+                    <p class="mt-2" style="font-size: 0.9rem;">点击上方添加按钮开始监控您的服务器</p>
+                </div>
+            `;
+            document.getElementById('serverCountNumber').textContent = 0;
+            document.getElementById('successCount').textContent = 0;
+            document.getElementById('errorCount').textContent = 0;
+            return;
+        }
+
+        if (monitors) {
+            totalCount = monitors.length;
+            let html = '<div class="monitor-grid grid-col-' + currentColumns + '">';
+            monitors.forEach(monitor => {
+                // 检查是否存在错误状态（通过检查数据中是否包含错误信息）
+                const hasError = (monitor.topInfo && monitor.topInfo.includes('SSH连接失败')) ||
+                               (monitor.freeInfo && monitor.freeInfo.includes('SSH连接失败')) ||
+                               (monitor.diskInfo && monitor.diskInfo.includes('SSH连接失败')) ||
+                               (monitor.topInfo && monitor.topInfo.includes('Auth fail')) ||
+                               (monitor.freeInfo && monitor.freeInfo.includes('Auth fail')) ||
+                               (monitor.diskInfo && monitor.diskInfo.includes('Auth fail'));
+
+                if (hasError) {
+                    errorCount++;
+                } else {
+                    successCount++;
+                }
+
+                const errorClass = hasError ? 'error-state' : '';
+
+                html += `
+                <div class="server-card ${errorClass}">
+                    <div class="card">
+                        <div class="card-header d-flex flex-column flex-md-row justify-content-between align-items-md-center">
+                            <div class="mb-1 mb-md-0">
+                                <span class="h6 mb-0 d-block d-md-inline">${monitor.host}:${monitor.port}</span>
+                                <span class="text-muted ms-0 ms-md-2 mt-1 d-inline-block last-update" style="font-size: 0.75rem;">
+                                    更新时间: ${formatDateTime(monitor.createdAt)}
+                                </span>
+                            </div>
+                            <div class="action-buttons d-flex">
+                                <a class="btn btn-sm btn-outline-primary me-1" href="/ssh-service/select/edit/${monitor.id}">✏️ 编辑</a>
+                                <button class="btn btn-sm btn-outline-success me-1"
+                                        onclick='openShell(${monitor.id})'>
+                                    💻 Shell
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger"
+                                        onclick='confirmDelete("${monitor.host}", "${monitor.port}", ${monitor.id})'>
+                                    🗑️ 删除
+                                </button>
+                            </div>
+                        </div>
+                        <div class="card-body py-2">
+                            <div class="server-info">
+                                <p class="mb-2"><strong>👤 用户名:</strong> <span>${monitor.username}</span></p>
+                                
+                                <!-- 性能指标 -->
+                                <div class="performance-metrics">
+                                    <h6 class="section-title mb-2">📈 性能指标</h6>
+                                    <div class="d-flex flex-wrap mb-2">
+                                        <!-- CPU 使用率 -->
+                                        <span class="metric-badge ${getCPUBadgeClass(monitor.cpuUsage || 0)}"
+                                              title="CPU使用率 - 点击查看详情"
+                                              onclick="showMetricDetail('cpu', this, ${monitor.id})">
+                                            CPU: ${typeof monitor.cpuUsage !== 'undefined' && monitor.cpuUsage !== null ? Number(monitor.cpuUsage).toFixed(1) + '%' : 'N/A'}
+                                        </span>
+                                        
+                                        <!-- 内存使用率 -->
+                                        <span class="metric-badge memory-badge"
+                                              title="内存使用情况 - 点击查看详情"
+                                              onclick="showMetricDetail('memory', this, ${monitor.id})">
+                                            内存: ${monitor.memoryUsage || 'N/A'}
+                                        </span>
+                                        
+                                        <!-- 磁盘使用率 -->
+                                        <span class="metric-badge ${getDiskBadgeClass(getDiskMaxUsagePercent(monitor.diskUsages))}"
+                                              title="磁盘最高使用率 - 点击查看详情"
+                                              onclick="showMetricDetail('disk', this, ${monitor.id})">
+                                            磁盘: ${getDiskMaxUsagePercent(monitor.diskUsages)}%
+                                        </span>
+                                        
+                                        <!-- 磁盘分区数量 -->
+                                        <span class="metric-badge disk-badge"
+                                              title="磁盘分区数量">
+                                            分区: ${monitor.diskUsages ? monitor.diskUsages.length : 0} 个
+                                        </span>
+                                    </div>
+                                    
+                                    <!-- CPU 使用率进度条 -->
+                                    <div class="mt-2">
+                                        <div class="d-flex justify-content-between">
+                                            <small class="text-muted">CPU 使用率详情</small>
+                                            <small>${typeof monitor.cpuUsage !== 'undefined' && monitor.cpuUsage !== null ? Number(monitor.cpuUsage).toFixed(1) + '%' : 'N/A'}</small>
+                                        </div>
+                                        <div class="progress">
+                                            <div class="progress-bar ${getCPUProgressClass(monitor.cpuUsage || 0)}" 
+                                                 style="width: ${(monitor.cpuUsage || 0)}%"
+                                                 aria-valuenow="${monitor.cpuUsage || 0}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- 内存使用率进度条 -->
+                                    <div class="mt-2">
+                                        <div class="d-flex justify-content-between">
+                                            <small class="text-muted">内存使用率详情</small>
+                                            <small>${getMemoryUsagePercent(monitor.memoryUsage)}%</small>
+                                        </div>
+                                        <div class="progress">
+                                            <div class="progress-bar ${getMemoryProgressClass(getMemoryUsagePercent(monitor.memoryUsage))}" 
+                                                 style="width: ${getMemoryUsagePercent(monitor.memoryUsage)}%"
+                                                 aria-valuenow="${getMemoryUsagePercent(monitor.memoryUsage)}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <!-- 磁盘分区表格 -->
+                                <div class="disk-partitions py-2">
+                                    <h6 class="section-title d-flex justify-content-between align-items-center mb-2">
+                                        <span>💾 磁盘分区</span>
+                                        <span class="badge bg-secondary">
+                                            ${monitor.diskUsages ? monitor.diskUsages.length : 0} 个分区
+                                        </span>
+                                    </h6>
+                                    <div class="table-responsive">
+                                        <table class="table table-sm table-bordered disk-table mb-0">
+                                            <thead>
+                                            <tr>
+                                                <th style="width: 25%">文件系统</th>
+                                                <th style="width: 25%">挂载点</th>
+                                                <th style="width: 15%">类型</th>
+                                                <th style="width: 35%">使用率</th>
+                                            </tr>
+                                            </thead>
+                                            <tbody>
+                                            ${monitor.diskUsages && monitor.diskUsages.map(disk => `
+                                                <tr>
+                                                    <td style="font-size: 0.8rem;">${disk.filesystem || ''}</td>
+                                                    <td style="font-size: 0.8rem;">${disk.mountedOn || ''}</td>
+                                                    <td style="font-size: 0.8rem;">${disk.type || ''}</td>
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <span class="badge me-2 ${getDiskBadgeClass(disk.usagePercent)}" style="font-size: 0.7rem;">
+                                                                ${disk.usagePercent || 0}%
+                                                            </span>
+                                                            <div class="progress flex-grow-1" style="height: 6px;">
+                                                                <div class="progress-bar ${getDiskProgressClass(disk.usagePercent)}" 
+                                                                     style="width: ${disk.usagePercent || 0}%"
+                                                                     aria-valuenow="${disk.usagePercent || 0}" 
+                                                                     aria-valuemin="0" 
+                                                                     aria-valuemax="100">
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </td>
+                                                </tr>
+                                            `).join('') || `
+                                                <tr>
+                                                    <td colspan="4" class="text-center">暂无磁盘数据</td>
+                                                </tr>
+                                            `}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+
+                                <div class="processes-row">
+                                <!-- CPU 进程 Top 3 -->
+                                <div class="cpu-processes">
+                                    <h6 class="section-title d-flex justify-content-between align-items-center">
+                                        <span>🔝 CPU使用率前三</span>
+                                        <span class="badge bg-secondary">
+                                            ${typeof monitor.cpuUsage !== 'undefined' && monitor.cpuUsage !== null ? Number(monitor.cpuUsage).toFixed(1) + '%' : 'N/A'}
+                                        </span>
+                                    </h6>
+                                    <div class="metric-detail-content" style="padding: 4px 6px;">
+                                        ${renderTopProcesses(monitor.topProcesses)}
+                                    </div>
+                                </div>
+
+                                <!-- 内存进程 Top 3 -->
+                                <div class="cpu-processes">
+                                    <h6 class="section-title d-flex justify-content-between align-items-center">
+                                        <span>📊 内存使用率前三</span>
+                                        <span class="badge bg-secondary">
+                                            ${monitor.memoryUsage || 'N/A'}
+                                        </span>
+                                    </h6>
+                                    <div class="metric-detail-content" style="padding: 4px 6px;">
+                                        ${renderTopMemProcesses(monitor.topMemProcesses)}
+                                    </div>
+                                </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+            html += '</div>';
+
+        document.getElementById('monitorList').innerHTML = html;
+        }
+
+        document.getElementById('serverCountNumber').textContent = totalCount;
+        document.getElementById('successCount').textContent = successCount;
+        document.getElementById('errorCount').textContent = errorCount;
+    }
+
+    // 切换列数
+    function setColumns(cols) {
+        currentColumns = cols;
+        // 更新按钮高亮
+        document.querySelectorAll('.column-btn').forEach(function(btn) {
+            btn.classList.toggle('active', parseInt(btn.dataset.col) === cols);
+        });
+        // 如果有数据则重新渲染
+        loadMonitorData();
+    }
+
+    // 获取CPU徽章样式类
+    function getCPUBadgeClass(cpuUsage) {
+        if (cpuUsage > 80) return 'cpu-danger';
+        if (cpuUsage > 50) return 'cpu-warning';
+        return 'cpu-badge';
+    }
+    
+    // 获取CPU进度条样式类
+    function getCPUProgressClass(cpuUsage) {
+        if (cpuUsage > 80) return 'cpu-high';
+        if (cpuUsage > 50) return 'cpu-medium';
+        return 'cpu-low';
+    }
+    
+    // 获取磁盘徽章样式类
+    function getDiskBadgeClass(usagePercent) {
+        if (typeof usagePercent === 'undefined' || usagePercent === null) {
+            usagePercent = 0;
+        }
+        if (usagePercent >= 90) return 'disk-danger';
+        if (usagePercent >= 80) return 'disk-warning';
+        return 'disk-success';
+    }
+    
+    // 获取磁盘进度条样式类
+    function getDiskProgressClass(usagePercent) {
+        if (typeof usagePercent === 'undefined' || usagePercent === null) {
+            usagePercent = 0;
+        }
+        if (usagePercent >= 90) return 'disk-danger';
+        if (usagePercent >= 80) return 'disk-warning';
+        return 'disk-success';
+    }
+    
+    // 从内存使用字符串中提取使用百分比
+    function getMemoryUsagePercent(memoryUsage) {
+        // 处理null或undefined的情况
+        if (!memoryUsage) {
+            return 0;
+        }
+        
+        // 内存使用格式为 "已用/总 使用率: xx.xx%"
+        const match = memoryUsage.match(/使用率:\s*([\d.]+)%/);
+        if (match && match[1]) {
+            return parseFloat(match[1]);
+        }
+        return 0;
+    }
+    
+    // 获取内存进度条样式类
+    function getMemoryProgressClass(memoryUsage) {
+        if (memoryUsage > 80) return 'cpu-high';  // 使用与CPU相同的颜色方案
+        if (memoryUsage > 50) return 'cpu-medium';
+        return 'cpu-low';
+    }
+    
+    // 获取磁盘最高使用率
+    function getDiskMaxUsagePercent(diskUsages) {
+        if (!diskUsages || diskUsages.length === 0) {
+            return 0;
+        }
+        
+        let maxUsage = 0;
+        diskUsages.forEach(disk => {
+            const usePercent = typeof disk.usagePercent !== 'undefined' && disk.usagePercent !== null ? disk.usagePercent : 0;
+            if (usePercent > maxUsage) {
+                maxUsage = usePercent;
+            }
+        });
+        
+        return maxUsage;
+    }
+    
+    /**
+     * 渲染 CPU 进程 Top 3
+     * 将从后端传来的纯文本格式（"PID  %CPU%  COMMAND"）解析为带排名的 HTML 表格
+     * 前三名进程分别显示为 红色(#1)、黄色(#2)、绿色(#3)
+     *
+     * @param topProcesses 后端解析好的进程文本，每行格式: "PID  %CPU%  COMMAND"
+     * @returns 渲染后的 HTML 表格字符串，无数据时返回提示信息
+     */
+    function renderTopProcesses(topProcesses) {
+        if (!topProcesses || topProcesses === '暂无数据' || topProcesses === '解析失败' || topProcesses === '无进程数据') {
+            return '<span class="text-muted" style="font-size: 0.82rem;">暂无进程数据</span>';
+        }
+
+        // 格式: "PID  %CPU%  COMMAND\nPID  %CPU%  COMMAND"
+        var lines = topProcesses.split('\n');
+        if (lines.length === 0) {
+            return '<span class="text-muted">暂无进程数据</span>';
+        }
+
+        var html = '<table class="table table-sm table-borderless mb-0" style="font-size: 0.82rem;">';
+        html += '<thead><tr style="color: #66d9ef;">' +
+                '<th style="width: 18%; padding: 2px 4px;">进程id</th>' +
+                '<th style="width: 18%; padding: 2px 4px;">cpu使用率</th>' +
+                '<th style="padding: 2px 4px;">进程名称</th>' +
+                '</tr></thead><tbody>';
+
+        var rankColors = ['#ff6b6b', '#ffd93d', '#6bcb77'];
+        lines.forEach(function(line, index) {
+            var parts = line.split(/\s+/);
+            if (parts.length >= 3) {
+                var pid = parts[0];
+                var cpu = parts[1];
+                var cmd = parts.slice(2).join(' ');
+                var color = index < 3 ? rankColors[index] : '#cccccc';
+                html += '<tr>' +
+                        '<td style="padding: 1px 4px; line-height: 1.8; color: ' + color + '; font-weight: ' + (index < 3 ? 'bold' : 'normal') + ';">' + pid + '</td>' +
+                        '<td style="padding: 1px 4px; line-height: 1.8; color: ' + color + '; font-weight: ' + (index < 3 ? 'bold' : 'normal') + ';">' + cpu + '</td>' +
+                        '<td style="padding: 1px 4px; line-height: 1.8; color: #cccccc;">' + cmd + '</td>' +
+                        '</tr>';
+            }
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    /**
+     * 渲染内存进程 Top 3
+     * 将从后端传来的纯文本格式（"PID  %MEM%  COMMAND"）解析为带排名的 HTML 表格
+     * 前三名进程分别显示为 红色(#1)、黄色(#2)、绿色(#3)
+     *
+     * @param topMemProcesses 后端解析好的进程文本，每行格式: "PID  %MEM%  COMMAND"
+     * @returns 渲染后的 HTML 表格字符串，无数据时返回提示信息
+     */
+    function renderTopMemProcesses(topMemProcesses) {
+        if (!topMemProcesses || topMemProcesses === '暂无数据' || topMemProcesses === '解析失败' || topMemProcesses === '无进程数据') {
+            return '<span class="text-muted" style="font-size: 0.82rem;">暂无进程数据</span>';
+        }
+
+        var lines = topMemProcesses.split('\n');
+        if (lines.length === 0) {
+            return '<span class="text-muted">暂无进程数据</span>';
+        }
+
+        var html = '<table class="table table-sm table-borderless mb-0" style="font-size: 0.82rem;">';
+        html += '<thead><tr style="color: #66d9ef;">' +
+                '<th style="width: 18%; padding: 2px 4px;">进程id</th>' +
+                '<th style="width: 18%; padding: 2px 4px;">内存使用率</th>' +
+                '<th style="padding: 2px 4px;">进程名称</th>' +
+                '</tr></thead><tbody>';
+
+        var rankColors = ['#ff6b6b', '#ffd93d', '#6bcb77'];
+        lines.forEach(function(line, index) {
+            var parts = line.split(/\s+/);
+            if (parts.length >= 3) {
+                var pid = parts[0];
+                var mem = parts[1];
+                var cmd = parts.slice(2).join(' ');
+                var color = index < 3 ? rankColors[index] : '#cccccc';
+                html += '<tr>' +
+                        '<td style="padding: 1px 4px; line-height: 1.8; color: ' + color + '; font-weight: ' + (index < 3 ? 'bold' : 'normal') + ';">' + pid + '</td>' +
+                        '<td style="padding: 1px 4px; line-height: 1.8; color: ' + color + '; font-weight: ' + (index < 3 ? 'bold' : 'normal') + ';">' + mem + '</td>' +
+                        '<td style="padding: 1px 4px; line-height: 1.8; color: #cccccc;">' + cmd + '</td>' +
+                        '</tr>';
+            }
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    // 格式化日期时间
+    function formatDateTime(dateString) {
+        // 处理null或undefined的情况
+        if (!dateString) {
+            return 'N/A';
+        }
+        
+        const date = new Date(dateString);
+        // 检查日期是否有效
+        if (isNaN(date.getTime())) {
+            return 'N/A';
+        }
+        
+        return date.getFullYear() + '-' + 
+               String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+               String(date.getDate()).padStart(2, '0') + ' ' + 
+               String(date.getHours()).padStart(2, '0') + ':' + 
+               String(date.getMinutes()).padStart(2, '0') + ':' + 
+               String(date.getSeconds()).padStart(2, '0');
+    }
+    
+    function confirmDelete(host, port, id) {
+        const message = `确定要删除 【${host}:${port}】 吗？`;
+        if (confirm(message)) {
+            window.location.href = '/ssh-service/delete/' + id;
+        }
+    }
+
+    // 触发采集接口，成功后刷新页面
+    function refreshMonitorData() {
+        if (!confirm('确定要重新采集监控数据吗？')) {
+            return;
+        }
+
+        // 显示采集中状态
+        const collectingStatus = document.getElementById('collectingStatus');
+        collectingStatus.style.display = 'inline-block';
+
+        fetch('/ssh-service/refresh/all', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => {
+                if (response.ok) {
+                    // 采集完成后重新加载数据
+                    loadMonitorData();
+                    alert('✅ 数据采集完成！');
+                } else {
+                    return response.text().then(msg => { throw new Error(msg || '采集失败'); });
+                }
+            })
+            .catch(error => {
+                alert('❌ ' + error.message);
+            })
+            .finally(() => {
+                // 隐藏采集中状态
+                collectingStatus.style.display = 'none';
+            });
+    }
+    
+    // 切换自动刷新
+    // 设置排序
+    function setSort(sortBy) {
+        if (currentSortBy === sortBy) {
+            // 如果点击的是当前排序字段，则切换排序顺序
+            currentOrder = currentOrder === 'asc' ? 'desc' : 'asc';
+        } else {
+            // 如果点击的是新字段，默认降序排列
+            currentSortBy = sortBy;
+            currentOrder = 'desc';
+        }
+        
+        // 重新加载数据
+        loadMonitorData();
+    }
+    
+    // 更新排序指示器
+    function updateSortIndicators() {
+        // 清除所有排序指示器
+        document.querySelectorAll('.sort-indicator').forEach(el => {
+            el.textContent = '';
+        });
+        
+        // 设置当前排序字段的指示器
+        const sortIndicator = document.getElementById(`sort-${currentSortBy}`);
+        if (sortIndicator) {
+            sortIndicator.textContent = currentOrder === 'asc' ? '↑' : '↓';
+        }
+    }
+    
+    // 显示指标详情
+    function showMetricDetail(metricType, element, serverId) {
+        // 获取所有监控数据以找到当前服务器
+        fetch(`/monitor/list/data?sortBy=${currentSortBy}&order=${currentOrder}`)
+            .then(response => response.json())
+            .then(data => {
+                const server = data.find(s => s.id === serverId);
+                if (!server) {
+                    alert('未找到服务器数据');
+                    return;
+                }
+                
+                let title = '';
+                let content = '';
+                
+                switch (metricType) {
+                    case 'cpu':
+                        title = 'CPU 使用详情';
+                        content = server.topInfo || '暂无数据';
+                        break;
+                    case 'memory':
+                        title = '内存使用详情';
+                        content = server.freeInfo || '暂无数据';
+                        break;
+                    case 'disk':
+                        title = '磁盘使用详情';
+                        content = server.diskInfo || '暂无数据';
+                        break;
+                    default:
+                        title = '指标详情';
+                        content = '暂无数据';
+                }
+                
+                // 设置模态框标题和内容
+                document.getElementById('metricDetailModalLabel').textContent = title;
+                document.getElementById('metricDetailContent').textContent = content;
+                
+                // 显示模态框
+                const modal = new bootstrap.Modal(document.getElementById('metricDetailModal'));
+                modal.show();
+            })
+            .catch(error => {
+                console.error('获取服务器数据失败:', error);
+                alert('获取服务器数据失败: ' + error.message);
+            });
+    }
+    
+    // 打开Shell连接
+    function openShell(serverId) {
+        // 在新窗口中打开Shell页面
+        window.open('/shell/' + serverId, '_blank', 'width=800,height=600');
+    }
+</script>
+</body>
+</html>
