@@ -193,6 +193,81 @@ body {
     transition: width 0.3s ease;
 }
 
+/* 多文件上传队列进度 */
+.upload-overall {
+    margin-bottom: 4px;
+}
+
+.upload-divider {
+    height: 1px;
+    background: #2d323b;
+    margin: 8px 0;
+}
+
+.file-progress-item {
+    padding: 4px 0;
+}
+
+.file-progress-info {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 2px;
+}
+
+.file-progress-name {
+    color: #c9d1d9;
+    max-width: 50%;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-progress-size {
+    color: #484f58;
+    font-size: 12px;
+    margin: 0 8px;
+    flex-shrink: 0;
+}
+
+.file-progress-status {
+    color: #8b949e;
+    font-size: 12px;
+}
+
+.file-progress-bar-row {
+    padding-left: 0;
+}
+
+.file-progress-bar-bg {
+    height: 4px;
+}
+
+.file-progress-bar-fill {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+.upload-actions {
+    margin-top: 8px;
+    text-align: right;
+}
+
+.btn-cancel {
+    padding: 4px 12px;
+    background: transparent;
+    color: #f85149;
+    border: 1px solid #f85149;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.btn-cancel:hover {
+    background: rgba(248, 81, 73, 0.15);
+}
+
 /* 文件表格 */
 .file-table-wrapper {
     flex: 1;

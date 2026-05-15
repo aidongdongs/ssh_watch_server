@@ -4,6 +4,9 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * 内存使用率解析工具类，解析 free 命令输出，支持多 Linux 发行版格式
+ */
 public class MemoryUtil {
 
     /**
@@ -78,7 +81,6 @@ public class MemoryUtil {
         }
 
         // 第0个是 "Mem:" 或 "Swap:"
-        String type = parts[0];
 
         // 至少包含 total, used, free
         map.put("total", parseSize(parts[1]));

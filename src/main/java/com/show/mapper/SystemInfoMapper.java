@@ -8,10 +8,16 @@ import org.apache.ibatis.annotations.*;
 
 import java.util.List;
 
+/**
+ * 系统监控信息数据访问接口
+ */
 @Mapper
 public interface SystemInfoMapper {
 
 
+    /**
+     * 查询所有监控记录，按创建时间倒序
+     */
     @Select("SELECT * FROM system_monitor ORDER BY created_at DESC")
     @Results({
             @Result(property = "id", column = "id"),
@@ -34,6 +40,9 @@ public interface SystemInfoMapper {
     List<com.show.entity.SystemInfo> findAll();
 
 
+    /**
+     * 根据 ID 查询监控记录
+     */
     @Select("SELECT * FROM system_monitor where  id = #{id}")
     @Results({
             @Result(property = "id", column = "id"),
@@ -55,6 +64,9 @@ public interface SystemInfoMapper {
     })
     SystemInfo selectById(String id );
     
+    /**
+     * 根据主机地址查询监控记录
+     */
     @Select("SELECT * FROM system_monitor WHERE host = #{host}")
     @Results({
             @Result(property = "id", column = "id"),
@@ -76,6 +88,9 @@ public interface SystemInfoMapper {
     })
     SystemInfo selectByHost(String host);
 
+    /**
+     * 根据主机地址模糊查询监控记录
+     */
     @Select("SELECT * FROM system_monitor WHERE host LIKE '%' || #{host} || '%'")
     @Results({
             @Result(property = "id", column = "id"),
@@ -97,6 +112,9 @@ public interface SystemInfoMapper {
     })
     List<SystemInfo> searchByHostLike(String host);
 
+    /**
+     * 根据监控 ID 查询关联的磁盘使用记录
+     */
     @Select("SELECT * FROM disk_usage WHERE monitor_id = #{monitorId}")
     @Results({
             @Result(property = "id", column = "id"),
@@ -115,6 +133,9 @@ public interface SystemInfoMapper {
 
 
 
+    /**
+     * 插入系统监控记录
+     */
     @Insert({
             "INSERT INTO system_monitor (",
             "  id, host, port, username, password, top_info, cpu_usage,",
@@ -129,6 +150,9 @@ public interface SystemInfoMapper {
     @Options(useGeneratedKeys = true, keyProperty = "id")
     Integer insertSystemMonitor(SystemInfo monitor); // ✅ 类型匹配
 
+    /**
+     * 选择性更新系统监控记录（仅更新非空字段）
+     */
     @Update({
             "<script>",
             "UPDATE system_monitor",
@@ -152,9 +176,15 @@ public interface SystemInfoMapper {
     })
     int updateSystemMonitorSelective(SystemInfo systemInfo);
 
+    /**
+     * 根据 ID 删除监控记录
+     */
     @Delete("DELETE FROM system_monitor WHERE id = #{id}")
     int deleteById(String id);
     
+    /**
+     * 根据主机地址查询磁盘使用记录
+     */
     @Select("SELECT * FROM disk_usage WHERE filesystem = #{host}")
     DiskUsage selectDiskUsagesByHost(String host);
 }

@@ -132,6 +132,16 @@ public class SftpService {
             channel.mkdir(path);
             log.info("新建文件夹成功: {}", path);
         } catch (SftpException e) {
+            // 目录已存在也视为成功（部分 SFTP 服务器返回 SSH_FX_FAILURE 而非 FILE_ALREADY_EXISTS）
+            try {
+                SftpATTRS attrs = channel.stat(path);
+                if (attrs != null && attrs.isDir()) {
+                    log.info("文件夹已存在: {}", path);
+                    return;
+                }
+            } catch (SftpException ignored) {
+                // stat 失败说明目录确实不存在，抛出原异常
+            }
             throw new RuntimeException("新建文件夹失败: " + e.getMessage(), e);
         } finally {
             sessionManager.disconnect(channel);

@@ -12,6 +12,10 @@ import org.springframework.web.bind.annotation.GetMapping;
 
 import java.util.List;
 
+/**
+ * 监控页面控制器
+ * 提供监控数据的列表页面渲染
+ */
 @Controller
 public class MonitorController {
 

@@ -1,11 +1,10 @@
 package com.show.entity;
 
-import org.springframework.stereotype.Component;
-
-import java.time.LocalDateTime;
 import java.util.List;
 
-@Component
+/**
+ * 系统监控信息实体类，包含主机连接信息、CPU/内存/磁盘使用率及进程数据
+ */
 public class SystemInfo {
     private Long id;
     private String host;

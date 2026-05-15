@@ -26,6 +26,12 @@ public class UploadSession {
     private OutputStream outputStream;
     private boolean completed;
 
+    // 队列模式字段：支持多文件串行上传
+    private int queueIndex = 1;         // 当前文件在队列中的序号
+    private int queueTotal = 1;         // 队列总文件数
+    private long queueTotalBytes;       // 队列所有文件的总字节数
+    private long queueStartTime;        // 队列开始时间（毫秒）
+
     public UploadSession() {}
 
     public UploadSession(String wsSessionId, String remoteFilePath, long fileSize,
@@ -62,6 +68,28 @@ public class UploadSession {
         }
     }
 
+    /**
+     * 在不关闭 SSH 连接的前提下重置上传状态（队列模式复用）
+     */
+    public void resetForNextFile(String newRemotePath, long newFileSize) {
+        this.remoteFilePath = newRemotePath;
+        this.fileSize = newFileSize;
+        this.receivedBytes = 0;
+        this.startTime = System.currentTimeMillis();
+        this.completed = false;
+        try {
+            if (this.outputStream != null) {
+                this.outputStream.close();
+            }
+            if (this.channel == null || !this.channel.isConnected()) {
+                throw new RuntimeException("SFTP 通道已断开，无法继续队列上传");
+            }
+            this.outputStream = this.channel.put(newRemotePath);
+        } catch (Exception e) {
+            throw new RuntimeException("切换队列文件失败: " + e.getMessage(), e);
+        }
+    }
+
     // === getters & setters ===
 
     public String getWsSessionId() { return wsSessionId; }
@@ -82,4 +110,13 @@ public class UploadSession {
     public void setOutputStream(OutputStream outputStream) { this.outputStream = outputStream; }
     public boolean isCompleted() { return completed; }
     public void setCompleted(boolean completed) { this.completed = completed; }
+
+    public int getQueueIndex() { return queueIndex; }
+    public void setQueueIndex(int queueIndex) { this.queueIndex = queueIndex; }
+    public int getQueueTotal() { return queueTotal; }
+    public void setQueueTotal(int queueTotal) { this.queueTotal = queueTotal; }
+    public long getQueueTotalBytes() { return queueTotalBytes; }
+    public void setQueueTotalBytes(long queueTotalBytes) { this.queueTotalBytes = queueTotalBytes; }
+    public long getQueueStartTime() { return queueStartTime; }
+    public void setQueueStartTime(long queueStartTime) { this.queueStartTime = queueStartTime; }
 }

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class SftpUtils {
 
+    /** JSON 序列化/反序列化工具 */
     public static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**

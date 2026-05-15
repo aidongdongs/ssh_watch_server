@@ -1,9 +1,10 @@
 package com.show.util;
 
-import java.nio.charset.StandardCharsets;
 import java.util.*;
-import java.util.regex.Pattern;
 
+/**
+ * 磁盘使用率解析工具类，解析 df -hT 命令输出，过滤虚拟文件系统
+ */
 public class DiskUtil {
 
     /**

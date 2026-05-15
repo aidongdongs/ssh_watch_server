@@ -19,6 +19,9 @@ import org.springframework.web.socket.server.standard.ServletServerContainerFact
 
 import java.util.Map;
 
+/**
+ * WebSocket 配置类，注册 SSH 终端和 SFTP 上传的 WebSocket 处理器
+ */
 @Configuration
 @EnableWebSocket
 public class WebSocketConfig implements WebSocketConfigurer {
@@ -31,6 +34,9 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Autowired
     private SftpUploadWebSocketHandler sftpUploadWebSocketHandler;
 
+    /**
+     * 注册 WebSocket 处理器路由
+     */
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         log.info("注册WebSocket处理器: /ssh");

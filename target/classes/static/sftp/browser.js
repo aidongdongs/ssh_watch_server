@@ -10,6 +10,19 @@ let currentFile = null;
 let fileOffset = 0;
 let chunkTimeout = null;
 
+// 多文件上传队列状态
+let uploadQueue = [];
+let queueIndex = 0;
+let queueTotalBytes = 0;
+let queueUploadedBytes = 0;
+let queueStartTime = 0;
+
+// 单文件上传速度计算
+let fileStartTime = 0;
+let lastSpeedTime = 0;
+let lastSpeedBytes = 0;
+let currentSpeed = 0;
+
 // 快捷导航目录
 const QUICK_DIRS = [
     { label: '/',         path: '/' },
@@ -209,8 +222,8 @@ function showError(msg) {
     tbody.innerHTML = '<tr><td colspan="4"><div class="error">❌ ' + escapeHtml(msg) + '</div></td></tr>';
 }
 
-// ===== 上传 =====
-function uploadFile() {
+// ===== 多文件上传 =====
+function uploadFiles() {
     if (wsUpload && wsUpload.readyState === WebSocket.OPEN) {
         alert('已有上传任务进行中，请等待完成');
         return;
@@ -218,73 +231,230 @@ function uploadFile() {
 
     var input = document.createElement('input');
     input.type = 'file';
+    input.multiple = true;
     input.onchange = function() {
-        var file = input.files[0];
-        if (!file) return;
+        var files = Array.from(input.files);
+        if (files.length === 0) return;
 
         // 检查同名文件
-        var existingRows = document.querySelectorAll('#fileListBody tr.file-row');
-        for (var i = 0; i < existingRows.length; i++) {
-            if (existingRows[i].textContent.includes(file.name)) {
-                if (!confirm('文件 "' + file.name + '" 已存在，是否覆盖？')) return;
-                break;
-            }
+        var existingNames = new Set();
+        document.querySelectorAll('#fileListBody tr.file-row td.file-name').forEach(function(td) {
+            var name = td.textContent.replace(/[📁📄]\s*/, '').trim();
+            existingNames.add(name);
+        });
+        var hasConflict = files.some(function(f) { return existingNames.has(f.name); });
+        if (hasConflict) {
+            if (!confirm('存在同名文件，是否覆盖？')) return;
         }
 
-        startWebSocketUpload(file);
+        startQueueUpload(files);
     };
     input.click();
 }
 
-function startWebSocketUpload(file) {
-    currentFile = file;
-    fileOffset = 0;
+// ===== 上传文件夹 =====
+
+function startQueueUpload(files) {
+    uploadQueue = files;
+    queueIndex = 0;
+    queueTotalBytes = 0;
+    queueUploadedBytes = 0;
+    files.forEach(function(f) { queueTotalBytes += f.size; });
+
+    showMultiProgress(files);
+    queueStartTime = Date.now();
 
     var protocol = location.protocol === 'https:' ? 'wss://' : 'ws://';
     wsUpload = new WebSocket(protocol + location.host + '/sftp/upload/' + serverId);
 
     wsUpload.onopen = function() {
-        wsUpload.send(JSON.stringify({
-            type: 'upload_start',
-            fileName: file.name,
-            fileSize: file.size,
-            remotePath: currentPath + '/' + file.name
-        }));
+        sendNextFileInQueue();
     };
 
-    wsUpload.onmessage = function(event) {
-        var msg = JSON.parse(event.data);
-        switch (msg.type) {
-            case 'upload_ready':
-                showProgress(currentFile.name, 0);
-                clearTimeout(chunkTimeout);
-                sendNextChunk();
-                break;
-            case 'upload_progress':
-                updateProgress(msg.percent);
-                clearTimeout(chunkTimeout);
-                sendNextChunk();
-                break;
-            case 'upload_complete':
-                hideProgress();
-                clearTimeout(chunkTimeout);
-                alert('上传完成: ' + msg.fileSize + ' 字节, ' + msg.speed);
-                refresh();
-                wsUpload.close();
-                break;
-            case 'upload_error':
-                hideProgress();
-                clearTimeout(chunkTimeout);
-                alert('上传失败: ' + msg.message);
-                wsUpload.close();
-                break;
-        }
-    };
+    wsUpload.onmessage = onUploadMessage;
 
     wsUpload.onclose = function() {
         clearTimeout(chunkTimeout);
         wsUpload = null;
     };
+}
+
+// WebSocket 消息处理（抽取为命名函数以支持取消后继续复用）
+function onUploadMessage(event) {
+    var msg = JSON.parse(event.data);
+    switch (msg.type) {
+        case 'upload_ready':
+            clearTimeout(chunkTimeout);
+            updateSingleFileProgress(queueIndex, 0, 0);
+            sendNextChunk();
+            break;
+        case 'upload_progress':
+            clearTimeout(chunkTimeout);
+            updateSingleFileProgress(queueIndex, msg.percent, msg.received);
+            updateOverallProgress();
+            sendNextChunk();
+            break;
+        case 'upload_complete':
+            clearTimeout(chunkTimeout);
+            markFileComplete(queueIndex);
+            queueUploadedBytes += uploadQueue[queueIndex].size;
+            queueIndex++;
+            if (queueIndex < uploadQueue.length) {
+                sendNextFileInQueue();
+            }
+            // 最后一个文件：等待 upload_queue_complete
+            break;
+        case 'upload_error':
+            clearTimeout(chunkTimeout);
+            markFileError(queueIndex, msg.message);
+            queueUploadedBytes += uploadQueue[queueIndex].size;
+            queueIndex++;
+            if (queueIndex < uploadQueue.length) {
+                sendNextFileInQueue();
+            }
+            // 最后一个文件出错也等待 upload_queue_complete
+            break;
+        case 'upload_queue_complete':
+            hideMultiProgress();
+            alert('全部上传完成: ' + msg.totalFiles + ' 个文件, ' + msg.speed);
+            refresh();
+            wsUpload.close();
+            break;
+    }
+}
+
+function sendNextFileInQueue() {
+    if (queueIndex >= uploadQueue.length) return;
+    var file = uploadQueue[queueIndex];
+    currentFile = file;
+    fileOffset = 0;
+    fileStartTime = Date.now();
+    lastSpeedTime = Date.now();
+    lastSpeedBytes = 0;
+    currentSpeed = 0;
+
+    wsUpload.send(JSON.stringify({
+        type: 'upload_start',
+        fileName: file.name,
+        fileSize: file.size,
+        remotePath: currentPath + '/' + (file.relativePath || file.name),
+        queueIndex: queueIndex + 1,
+        queueTotal: uploadQueue.length,
+        queueTotalBytes: queueTotalBytes
+    }));
+}
+
+function cancelQueue() {
+    if (!wsUpload) return;
+    wsUpload.send(JSON.stringify({ type: 'upload_cancel' }));
+    wsUpload.close();
+    wsUpload = null;
+    currentFile = null;
+    clearTimeout(chunkTimeout);
+    hideMultiProgress();
+    refresh();
+}
+
+// ===== 单文件上传（兼容旧入口） =====
+function uploadFile() {
+    uploadFiles();
+}
+
+// ===== 多文件进度渲染 =====
+function showMultiProgress(files) {
+    document.getElementById('uploadProgress').style.display = 'block';
+    document.getElementById('overallLabel').textContent = '📤 队列上传中...';
+    document.getElementById('overallPercent').textContent = '0%';
+    document.getElementById('overallProgressBar').style.width = '0%';
+
+    var container = document.getElementById('fileProgressList');
+    container.innerHTML = '';
+    files.forEach(function(file, index) {
+        var item = document.createElement('div');
+        item.className = 'file-progress-item';
+        item.id = 'fileProgress_' + index;
+        item.innerHTML =
+            '<div class="file-progress-info">' +
+                '<span class="file-progress-name">' + escapeHtml(file.name) + '</span>' +
+                '<span class="file-progress-size">' + formatSize(file.size) + '</span>' +
+                '<span class="file-progress-status" id="fileStatus_' + index + '">等待中</span>' +
+            '</div>' +
+            '<div class="file-progress-bar-row">' +
+                '<div class="progress-bar-wrapper file-progress-bar-bg">' +
+                    '<div class="progress-bar-fill file-progress-bar-fill" id="fileBar_' + index + '" style="width:0%"></div>' +
+                '</div>' +
+            '</div>';
+        container.appendChild(item);
+    });
+}
+
+function updateSingleFileProgress(index, percent, received) {
+    var bar = document.getElementById('fileBar_' + index);
+    var status = document.getElementById('fileStatus_' + index);
+    if (bar) bar.style.width = percent + '%';
+    if (status) {
+        // 每 500ms 更新一次速度，避免闪烁
+        var now = Date.now();
+        if (now - lastSpeedTime > 500 && received > 0) {
+            var elapsed = (now - lastSpeedTime) / 1000;
+            currentSpeed = (received - lastSpeedBytes) / elapsed;
+            lastSpeedTime = now;
+            lastSpeedBytes = received;
+        }
+        var text = percent.toFixed(1) + '%';
+        if (currentSpeed > 0) {
+            text += ' (' + formatSize(Math.round(currentSpeed)) + '/s)';
+        }
+        status.textContent = text;
+    }
+}
+
+function updateOverallProgress() {
+    var totalSent = queueUploadedBytes;
+    if (queueIndex < uploadQueue.length && currentFile) {
+        totalSent += fileOffset;
+    }
+    var percent = queueTotalBytes > 0 ? (totalSent / queueTotalBytes * 100) : 0;
+    document.getElementById('overallPercent').textContent = percent.toFixed(1) + '%';
+    document.getElementById('overallProgressBar').style.width = percent + '%';
+}
+
+function markFileComplete(index) {
+    var bar = document.getElementById('fileBar_' + index);
+    var status = document.getElementById('fileStatus_' + index);
+    if (bar) { bar.style.width = '100%'; bar.style.background = '#238636'; }
+    if (status) { status.textContent = '✅ 完成'; status.style.color = '#3fb950'; }
+}
+
+function markFileError(index, message) {
+    var bar = document.getElementById('fileBar_' + index);
+    var status = document.getElementById('fileStatus_' + index);
+    if (bar) { bar.style.width = '100%'; bar.style.background = '#da3633'; }
+    if (status) { status.textContent = '❌ ' + message; status.style.color = '#f85149'; }
+}
+
+function hideMultiProgress() {
+    document.getElementById('uploadProgress').style.display = 'none';
+    document.getElementById('overallProgressBar').style.width = '0%';
+    document.getElementById('overallPercent').textContent = '0%';
+    document.getElementById('fileProgressList').innerHTML = '';
+}
+
+function finishQueueUpload() {
+    // 安全兜底：如果 upload_queue_complete 超过 3 秒未到达，自行完成
+    if (wsUpload && wsUpload.readyState === WebSocket.OPEN) {
+        var totalTime = Date.now() - queueStartTime;
+        var speed = (queueTotalBytes / 1024 / 1024) / (totalTime / 1000);
+        alert('全部上传完成: ' + uploadQueue.length + ' 个文件, ' + speed.toFixed(1) + 'MB/s');
+        hideMultiProgress();
+        refresh();
+        wsUpload.close();
+    }
+}
+
+// ===== 上传（单文件模式，内部调用多文件入口） =====
+function startWebSocketUpload(file) {
+    uploadFiles();
 }
 
 function sendNextChunk() {
@@ -299,26 +469,6 @@ function sendNextChunk() {
     var blob = currentFile.slice(fileOffset, end);
     fileOffset += blob.size;
     wsUpload.send(blob);
-}
-
-// ===== 进度条 =====
-function showProgress(fileName, percent) {
-    var el = document.getElementById('uploadProgress');
-    el.style.display = 'block';
-    document.getElementById('uploadFileName').textContent = '📤 ' + fileName;
-    document.getElementById('uploadPercent').textContent = percent.toFixed(1) + '%';
-    document.getElementById('uploadProgressBar').style.width = percent + '%';
-}
-
-function updateProgress(percent) {
-    document.getElementById('uploadPercent').textContent = percent.toFixed(1) + '%';
-    document.getElementById('uploadProgressBar').style.width = percent + '%';
-}
-
-function hideProgress() {
-    document.getElementById('uploadProgress').style.display = 'none';
-    document.getElementById('uploadProgressBar').style.width = '0%';
-    document.getElementById('uploadPercent').textContent = '0%';
 }
 
 // ===== 下载 =====

@@ -18,6 +18,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
 
+/**
+ * 单台服务器监控数据采集任务
+ * 实现 Callable 接口以支持多线程并行采集，
+ * 通过 SSH 远程执行命令获取 CPU、内存、磁盘信息
+ */
 public class MonitorCollectorTask implements Callable<CollectResult> {
 
     private static final Logger log = LoggerFactory.getLogger(MonitorCollectorTask.class);
@@ -255,6 +260,12 @@ public class MonitorCollectorTask implements Callable<CollectResult> {
         return sb.toString();
     }
 
+    /**
+     * 计算采集任务的耗时
+     *
+     * @param startTime 开始时间的格式化字符串
+     * @return 耗时字符串（如 "1234ms"）
+     */
     private String getDuration(String startTime) {
         try {
             LocalDateTime start = LocalDateTime.parse(startTime, LOG_TIME_FORMATTER);

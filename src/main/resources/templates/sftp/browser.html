@@ -25,7 +25,7 @@
 
             <!-- 操作栏 -->
             <div class="toolbar">
-                <button onclick="uploadFile()">📤 上传</button>
+                <button onclick="uploadFiles()">📤 上传文件</button>
                 <button onclick="downloadFile()" id="btnDownload" disabled>⬇️ 下载</button>
                 <button onclick="createDirectory()">📁 新建文件夹</button>
                 <button onclick="renameFile()" id="btnRename" disabled>✏️ 重命名</button>
@@ -33,14 +33,25 @@
                 <button onclick="refresh()">🔄 刷新</button>
             </div>
 
-            <!-- 上传进度条 -->
+            <!-- 上传进度面板（队列模式，默认隐藏） -->
             <div id="uploadProgress" class="upload-progress" style="display:none;">
-                <div class="upload-info">
-                    <span id="uploadFileName"></span>
-                    <span id="uploadPercent">0%</span>
+                <!-- 总体进度 -->
+                <div class="upload-overall">
+                    <div class="upload-info">
+                        <span id="overallLabel">📤 队列上传中...</span>
+                        <span id="overallPercent">0%</span>
+                    </div>
+                    <div class="progress-bar-wrapper">
+                        <div id="overallProgressBar" class="progress-bar-fill" style="width:0%"></div>
+                    </div>
                 </div>
-                <div class="progress-bar-wrapper">
-                    <div id="uploadProgressBar" class="progress-bar-fill" style="width:0%"></div>
+                <!-- 分隔线 -->
+                <div class="upload-divider"></div>
+                <!-- 单文件进度列表 -->
+                <div id="fileProgressList"></div>
+                <!-- 取消按钮 -->
+                <div class="upload-actions">
+                    <button onclick="cancelQueue()" class="btn-cancel">取消全部</button>
                 </div>
             </div>
 

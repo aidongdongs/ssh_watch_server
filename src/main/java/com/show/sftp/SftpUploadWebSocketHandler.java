@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.AbstractWebSocketHandler;
 
+import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.*;
@@ -18,6 +19,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * WebSocket 分块上传处理器
+ * 支持单文件上传和多文件队列上传（串行，复用 SSH 连接）
  */
 @Component
 public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
@@ -45,7 +47,36 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
                 String rawPath = json.get("remotePath").asText();
                 String remotePath = SftpUtils.sanitizePath(rawPath);
                 long fileSize = json.get("fileSize").asLong();
+                int queueIndex = json.has("queueIndex") ? json.get("queueIndex").asInt() : 1;
+                int queueTotal = json.has("queueTotal") ? json.get("queueTotal").asInt() : 1;
 
+                // 队列模式连接复用：检查是否已有 UploadSession
+                UploadSession existing = uploads.get(ws.getId());
+                if (existing != null && existing.isCompleted() && queueIndex > 1) {
+                    try {
+                        existing.resetForNextFile(remotePath, fileSize);
+                        existing.setQueueIndex(queueIndex);
+                        existing.setQueueTotal(queueTotal);
+                        if (existing.getQueueTotalBytes() == 0 && json.has("queueTotalBytes")) {
+                            existing.setQueueTotalBytes(json.get("queueTotalBytes").asLong());
+                        }
+                        sendJson(ws, Collections.singletonMap("type", "upload_ready"));
+                        return;
+                    } catch (Exception e) {
+                        log.error("队列模式复用连接失败，降级为重建", e);
+                        existing.closeAndCleanup(true);
+                        uploads.remove(ws.getId());
+                        // 降级到新建逻辑
+                    }
+                }
+
+                // 清理残留（出错的 session）
+                if (existing != null) {
+                    existing.closeAndCleanup(true);
+                    uploads.remove(ws.getId());
+                }
+
+                // 首次上传或出错后重建
                 try {
                     SystemInfo server = systemInfoMapper.selectById(serverId);
                     if (server == null) {
@@ -66,6 +97,14 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
 
                     UploadSession session = new UploadSession(ws.getId(), remotePath,
                             fileSize, sshSession, channel, out);
+                    session.setQueueIndex(queueIndex);
+                    session.setQueueTotal(queueTotal);
+                    if (json.has("queueTotalBytes")) {
+                        session.setQueueTotalBytes(json.get("queueTotalBytes").asLong());
+                    } else {
+                        session.setQueueTotalBytes(fileSize);
+                    }
+                    session.setQueueStartTime(System.currentTimeMillis());
                     uploads.put(ws.getId(), session);
 
                     sendJson(ws, Collections.singletonMap("type", "upload_ready"));
@@ -75,11 +114,11 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
                 }
                 break;
             }
-            case "upload_cancel": {
+            case "upload_cancel":
+                // 用户取消上传，移除并清理会话，删除远程不完整文件
                 UploadSession cancelled = uploads.remove(ws.getId());
                 if (cancelled != null) cancelled.closeAndCleanup(true);
                 break;
-            }
             default:
                 log.warn("未知的文本消息类型: {}", type);
         }
@@ -111,21 +150,45 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
                 long cost = System.currentTimeMillis() - session.getStartTime();
                 String speed = String.format("%.1fMB/s",
                         (double) session.getFileSize() / cost / 1024);
+
+                // 构建单文件完成消息
                 Map<String, Object> completeMsg = new HashMap<>();
                 completeMsg.put("type", "upload_complete");
                 completeMsg.put("fileSize", session.getFileSize());
                 completeMsg.put("timeMs", cost);
                 completeMsg.put("speed", speed);
-                sendJson(ws, completeMsg);
-                session.closeAndCleanup(false);
-                uploads.remove(ws.getId());
+
+                boolean isLastInQueue = (session.getQueueIndex() >= session.getQueueTotal());
+
+                if (isLastInQueue && session.getQueueTotal() > 1) {
+                    // 队列最后一个文件 → 单文件完成 + 队列汇总
+                    sendJson(ws, completeMsg);
+                    long queueCost = System.currentTimeMillis() - session.getQueueStartTime();
+                    String queueSpeed = String.format("%.1fMB/s",
+                            (double) session.getQueueTotalBytes() / queueCost / 1024);
+                    Map<String, Object> queueMsg = new HashMap<>();
+                    queueMsg.put("type", "upload_queue_complete");
+                    queueMsg.put("totalFiles", session.getQueueTotal());
+                    queueMsg.put("totalBytes", session.getQueueTotalBytes());
+                    queueMsg.put("totalTimeMs", queueCost);
+                    queueMsg.put("speed", queueSpeed);
+                    sendJson(ws, queueMsg);
+                    session.closeAndCleanup(false);
+                    uploads.remove(ws.getId());
+                } else if (isLastInQueue || session.getQueueTotal() <= 1) {
+                    // 单文件模式 → 仅单文件完成，关闭连接
+                    sendJson(ws, completeMsg);
+                    session.closeAndCleanup(false);
+                    uploads.remove(ws.getId());
+                } else {
+                    // 队列中间文件 → 单文件完成，仅关 OutputStream，保留 SSH
+                    sendJson(ws, completeMsg);
+                    try { session.getOutputStream().close(); } catch (Exception ignored) {}
+                }
             }
         } catch (Exception e) {
             log.error("处理二进制消息异常", e);
-            Map<String, Object> errorMsg = new HashMap<>();
-            errorMsg.put("type", "upload_error");
-            errorMsg.put("message", e.getMessage());
-            sendJson(ws, errorMsg);
+            sendJson(ws, errorMsg("上传失败: " + e.getMessage()));
             UploadSession failed = uploads.remove(ws.getId());
             if (failed != null) failed.closeAndCleanup(true);
         }
@@ -149,6 +212,23 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
+    /**
+     * Spring 容器关闭时，清理所有 SFTP 上传连接
+     */
+    @PreDestroy
+    public void destroy() {
+        log.info("Spring容器关闭，清理所有SFTP上传连接");
+        for (String id : new HashSet<>(uploads.keySet())) {
+            UploadSession session = uploads.remove(id);
+            if (session != null) {
+                session.closeAndCleanup(true);
+            }
+        }
+    }
+
+    /**
+     * 向 WebSocket 客户端发送 JSON 消息，忽略发送时的 IO 异常
+     */
     private void sendJson(WebSocketSession ws, Map<String, Object> msg) {
         try {
             String json = SftpUtils.OBJECT_MAPPER.writeValueAsString(msg);
@@ -158,6 +238,9 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
         }
     }
 
+    /**
+     * 构造上传错误消息 Map
+     */
     private Map<String, Object> errorMsg(String message) {
         Map<String, Object> m = new HashMap<>();
         m.put("type", "upload_error");

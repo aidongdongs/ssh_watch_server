@@ -17,6 +17,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.*;
 
+/**
+ * SSH 监控服务实现类
+ * 并行采集所有服务器的系统监控数据（CPU、内存、磁盘），
+ * 并将结果顺序写入 SQLite 数据库
+ */
 @Service
 public class SshMonitorServiceImpl implements SshMonitorService {
 
@@ -30,6 +35,11 @@ public class SshMonitorServiceImpl implements SshMonitorService {
 
     private static final DateTimeFormatter LOG_TIME_FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
+    /**
+     * 采集所有服务器的监控数据
+     * 阶段1：并行 SSH 采集（网络IO密集，多线程提升效率）
+     * 阶段2：顺序写入 SQLite 数据库（避免锁竞争）
+     */
     @Override
     public void collectAllMonitors() {
         String startTime = LocalDateTime.now().format(LOG_TIME_FORMATTER);
@@ -108,6 +118,13 @@ public class SshMonitorServiceImpl implements SshMonitorService {
         log.info("[{}] 所有服务器采集任务已完成，共写入 {} 条数据", endTime, results.size());
     }
 
+    /**
+     * 将采集成功的监控数据写入数据库
+     * 更新系统信息并先删后插磁盘分区数据
+     *
+     * @param systemInfo 系统信息
+     * @param diskUsages 磁盘分区使用情况列表
+     */
     private void writeSuccessToDb(SystemInfo systemInfo, List<DiskUsage> diskUsages) {
         // 更新服务器监控数据
         systemInfoMapper.updateSystemMonitorSelective(systemInfo);
@@ -124,6 +141,12 @@ public class SshMonitorServiceImpl implements SshMonitorService {
         }
     }
 
+    /**
+     * 将采集失败的服务器错误信息写入数据库
+     *
+     * @param systemInfo   系统信息
+     * @param errorMessage 错误描述信息
+     */
     private void writeErrorToDb(SystemInfo systemInfo, String errorMessage) {
         systemInfo.setCpuUsage(0.0);
         systemInfo.setMemoryUsage("无法获取");

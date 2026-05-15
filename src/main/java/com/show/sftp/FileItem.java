@@ -5,12 +5,12 @@ package com.show.sftp;
  */
 public class FileItem {
 
-    private String name;
-    private String path;
-    private long size;
-    private boolean isDir;
-    private String permissions;
-    private String lastModified;
+    private String name;          // 文件名
+    private String path;          // 完整路径
+    private long size;            // 文件大小（字节）
+    private boolean isDir;        // 是否为目录
+    private String permissions;   // 权限字符串，如 rwxr-xr-x
+    private String lastModified;  // 最后修改时间
 
     public FileItem() {}
 

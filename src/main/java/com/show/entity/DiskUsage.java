@@ -1,7 +1,8 @@
 package com.show.entity;
 
-import java.time.LocalDateTime;
-
+/**
+ * 磁盘使用情况实体类，对应 disk_usage 表
+ */
 public class DiskUsage {
     private Long id;
     private Long monitorId;       // 对应 system_monitor.id，外键关联

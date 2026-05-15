@@ -8,7 +8,11 @@ import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.Properties;
 
-public  class  SSHUtil {
+/**
+ * SSH 连接与远程命令执行工具类
+ * 基于 JSch 库实现，支持命令执行、文件上传下载及 CPU 使用率解析
+ */
+public class SSHUtil {
 
     private static final Logger log = LoggerFactory.getLogger(SSHUtil.class);
 

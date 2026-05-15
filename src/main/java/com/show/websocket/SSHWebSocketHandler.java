@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.socket.*;
 import org.springframework.web.socket.handler.TextWebSocketHandler;
 
+import javax.annotation.PreDestroy;
 import java.io.*;
 import java.nio.charset.StandardCharsets;
 import java.util.*;
@@ -185,10 +186,24 @@ public class SSHWebSocketHandler extends TextWebSocketHandler {
         cleanup(session.getId());
     }
 
+    /**
+     * Spring 容器关闭时，清理所有 SSH 连接
+     */
+    @PreDestroy
+    public void destroy() {
+        log.info("Spring容器关闭，清理所有SSH WebSocket连接");
+        for (String id : new HashSet<>(connections.keySet())) {
+            cleanup(id);
+        }
+        connections.clear();
+    }
+
     // 移除连接映射并关闭 SSH 通道和会话
     private void cleanup(String sessionId) {
         SSHConnectionInfo conn = connections.remove(sessionId);
         if (conn == null) return;
+        try { if (conn.getInput() != null) conn.getInput().close(); } catch (Exception ignored) {}
+        try { if (conn.getOutput() != null) conn.getOutput().close(); } catch (Exception ignored) {}
         quietlyClose(conn.getChannel());
         quietlyClose(conn.getSshSession());
     }

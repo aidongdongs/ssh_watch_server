@@ -13,6 +13,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 
 import java.util.List;
 
+/**
+ * Shell终端控制器
+ * 提供服务器 WebSSH 终端的页面入口
+ */
 @Controller
 @RequestMapping("/shell")
 public class ShellController {
@@ -22,6 +26,13 @@ public class ShellController {
     @Autowired
     private SystemInfoMapper systemInfoMapper;
 
+    /**
+     * 通过 ID 打开服务器 Shell 终端页面
+     *
+     * @param id    服务器 ID（数字格式）
+     * @param model 视图模型
+     * @return 终端页面或重定向到监控列表
+     */
     @GetMapping("/{id:\\d+}")
     public String openShell(@PathVariable Integer id, Model model) {
         log.info("尝试访问服务器ID: {}", id);
@@ -47,6 +58,13 @@ public class ShellController {
         }
     }
 
+    /**
+     * 打开服务器控制台页面
+     *
+     * @param id    服务器 ID
+     * @param model 视图模型
+     * @return 终端页面或重定向到监控列表
+     */
     @GetMapping("/console/{id}")
     public String console(@PathVariable Integer id, Model model) {
         log.info("尝试访问服务器ID: {}", id);

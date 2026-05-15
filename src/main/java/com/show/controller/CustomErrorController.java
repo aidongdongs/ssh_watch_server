@@ -15,6 +15,12 @@ import javax.servlet.http.HttpServletRequest;
 @Controller
 public class CustomErrorController implements ErrorController {
 
+    /**
+     * 处理错误请求，根据不同状态码返回对应的错误页面
+     *
+     * @param request HTTP 请求对象，包含错误状态码属性
+     * @return ModelAndView 包含错误信息和视图名称
+     */
     @RequestMapping("/error")
     public ModelAndView handleError(HttpServletRequest request) {
         ModelAndView modelAndView = new ModelAndView();
