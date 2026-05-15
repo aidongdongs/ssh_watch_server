@@ -733,6 +733,10 @@
                                         onclick='openShell(${monitor.id})'>
                                     💻 Shell
                                 </button>
+                                <button class="btn btn-sm btn-outline-info me-1"
+                                        onclick="window.open('/sftp/' + ${monitor.id})">
+                                    📁 文件
+                                </button>
                                 <button class="btn btn-sm btn-outline-danger"
                                         onclick='confirmDelete("${monitor.host}", "${monitor.port}", ${monitor.id})'>
                                     🗑️ 删除
