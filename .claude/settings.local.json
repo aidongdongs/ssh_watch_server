@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Copy-Item *)",
+      "PowerShell(Stop-Process *)",
+      "PowerShell(Get-Content -Path \"C:\\\\Users\\\\ADMIN\\\\Downloads\\\\springboot_mybatis_sqlit\\\\src\\\\main\\\\resources\\\\templates\\\\monitor\\\\list.html\" | Select-Object -Index \\(645,646,647,648,649,650\\))",
+      "PowerShell(Get-Content *)",
+      "PowerShell(Test-Path *)",
+      "PowerShell(ls \"$env:USERPROFILE\\\\.m2\\\\repository\\\\com\\\\github\\\\mwiede\\\\jsch\" -Recurse 2>&1 | Select-Object FullName, Length)"
+    ]
+  }
+}

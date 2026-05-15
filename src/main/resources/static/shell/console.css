@@ -1,0 +1,493 @@
+/* ========== CSS Custom Properties (Dark - 默认) ========== */
+:root {
+    --bg-color: #1e1e1e;
+    --text-color: #cccccc;
+    --panel-bg: #2d2d30;
+    --header-bg-start: #2c3e50;
+    --header-bg-end: #1a2a3a;
+    --header-border: #3c3c3c;
+    --server-info-color: #a9a9a9;
+    --close-btn-color: #cccccc;
+    --close-hover: #ff6b6b;
+    --modal-overlay: rgba(0, 0, 0, 0.5);
+    --modal-bg: #2d2d30;
+    --modal-text: #cccccc;
+    --modal-inner-border: #3c3c3c;
+    --input-bg: #1e1e1e;
+    --input-text: #cccccc;
+    --input-border: #3c3c3c;
+    --input-focus-border: #569cd6;
+    --input-focus-shadow: rgba(86, 156, 214, 0.25);
+    --primary-bg: #007acc;
+    --primary-border: #007acc;
+    --primary-hover-bg: #005a9e;
+    --primary-hover-border: #005a9e;
+    --secondary-bg: #3c3c3c;
+    --secondary-border: #3c3c3c;
+    --secondary-hover-bg: #2d2d2d;
+    --secondary-hover-border: #2d2d2d;
+    --dropzone-bg: rgba(0, 0, 0, 0.7);
+    --dropzone-box-bg: #2d2d30;
+    --dropzone-border: #007acc;
+    --dropzone-text: #cccccc;
+}
+
+/* ========== Light Theme ========== */
+body.theme-light {
+    --bg-color: #f8f9fa;
+    --text-color: #212529;
+    --panel-bg: #ffffff;
+    --header-bg-start: #e9ecef;
+    --header-bg-end: #dee2e6;
+    --header-border: #ced4da;
+    --server-info-color: #6c757d;
+    --close-btn-color: #212529;
+    --close-hover: #dc3545;
+    --modal-overlay: rgba(0, 0, 0, 0.3);
+    --modal-bg: #ffffff;
+    --modal-text: #212529;
+    --modal-inner-border: #dee2e6;
+    --input-bg: #ffffff;
+    --input-text: #212529;
+    --input-border: #ced4da;
+    --input-focus-border: #86b7fe;
+    --input-focus-shadow: rgba(13, 110, 253, 0.25);
+    --primary-bg: #0d6efd;
+    --primary-border: #0d6efd;
+    --primary-hover-bg: #0b5ed7;
+    --primary-hover-border: #0a58ca;
+    --secondary-bg: #6c757d;
+    --secondary-border: #6c757d;
+    --secondary-hover-bg: #5c636a;
+    --secondary-hover-border: #565e64;
+    --dropzone-bg: rgba(255, 255, 255, 0.8);
+    --dropzone-box-bg: #ffffff;
+    --dropzone-border: #0d6efd;
+    --dropzone-text: #212529;
+}
+
+/* ========== Green Theme ========== */
+body.theme-green {
+    --bg-color: #000000;
+    --text-color: #00ff00;
+    --panel-bg: #0d0d0d;
+    --header-bg-start: #001a00;
+    --header-bg-end: #000d00;
+    --header-border: #003300;
+    --server-info-color: #009900;
+    --close-btn-color: #00ff00;
+    --close-hover: #ff3333;
+    --modal-overlay: rgba(0, 255, 0, 0.08);
+    --modal-bg: #0d0d0d;
+    --modal-text: #00ff00;
+    --modal-inner-border: #003300;
+    --input-bg: #000000;
+    --input-text: #00ff00;
+    --input-border: #003300;
+    --input-focus-border: #00ff00;
+    --input-focus-shadow: rgba(0, 255, 0, 0.25);
+    --primary-bg: #00cc00;
+    --primary-border: #00cc00;
+    --primary-hover-bg: #009900;
+    --primary-hover-border: #009900;
+    --secondary-bg: #003300;
+    --secondary-border: #003300;
+    --secondary-hover-bg: #002200;
+    --secondary-hover-border: #002200;
+    --dropzone-bg: rgba(0, 255, 0, 0.05);
+    --dropzone-box-bg: #0d0d0d;
+    --dropzone-border: #00ff00;
+    --dropzone-text: #00ff00;
+}
+
+/* ========== Dracula Theme ========== */
+body.theme-dracula {
+    --bg-color: #282a36;
+    --text-color: #f8f8f2;
+    --panel-bg: #1e1f29;
+    --header-bg-start: #44475a;
+    --header-bg-end: #1e1f29;
+    --header-border: #44475a;
+    --server-info-color: #6272a4;
+    --close-btn-color: #f8f8f2;
+    --close-hover: #ff5555;
+    --modal-overlay: rgba(0, 0, 0, 0.6);
+    --modal-bg: #1e1f29;
+    --modal-text: #f8f8f2;
+    --modal-inner-border: #44475a;
+    --input-bg: #282a36;
+    --input-text: #f8f8f2;
+    --input-border: #44475a;
+    --input-focus-border: #bd93f9;
+    --input-focus-shadow: rgba(189, 147, 249, 0.25);
+    --primary-bg: #bd93f9;
+    --primary-border: #bd93f9;
+    --primary-hover-bg: #9876e6;
+    --primary-hover-border: #9876e6;
+    --secondary-bg: #44475a;
+    --secondary-border: #44475a;
+    --secondary-hover-bg: #555870;
+    --secondary-hover-border: #555870;
+    --dropzone-bg: rgba(68, 71, 90, 0.8);
+    --dropzone-box-bg: #1e1f29;
+    --dropzone-border: #bd93f9;
+    --dropzone-text: #f8f8f2;
+}
+
+/* ========== Nord Theme ========== */
+body.theme-nord {
+    --bg-color: #2e3440;
+    --text-color: #d8dee9;
+    --panel-bg: #3b4252;
+    --header-bg-start: #3b4252;
+    --header-bg-end: #2e3440;
+    --header-border: #4c566a;
+    --server-info-color: #616e88;
+    --close-btn-color: #d8dee9;
+    --close-hover: #bf616a;
+    --modal-overlay: rgba(0, 0, 0, 0.5);
+    --modal-bg: #3b4252;
+    --modal-text: #d8dee9;
+    --modal-inner-border: #4c566a;
+    --input-bg: #2e3440;
+    --input-text: #d8dee9;
+    --input-border: #4c566a;
+    --input-focus-border: #81a1c1;
+    --input-focus-shadow: rgba(129, 161, 193, 0.25);
+    --primary-bg: #81a1c1;
+    --primary-border: #81a1c1;
+    --primary-hover-bg: #5e81ac;
+    --primary-hover-border: #5e81ac;
+    --secondary-bg: #4c566a;
+    --secondary-border: #4c566a;
+    --secondary-hover-bg: #616e88;
+    --secondary-hover-border: #616e88;
+    --dropzone-bg: rgba(59, 66, 82, 0.8);
+    --dropzone-box-bg: #3b4252;
+    --dropzone-border: #81a1c1;
+    --dropzone-text: #d8dee9;
+}
+
+/* ========== Gruvbox Dark Theme ========== */
+body.theme-gruvbox {
+    --bg-color: #282828;
+    --text-color: #ebdbb2;
+    --panel-bg: #1d2021;
+    --header-bg-start: #3c3836;
+    --header-bg-end: #1d2021;
+    --header-border: #3c3836;
+    --server-info-color: #a89984;
+    --close-btn-color: #ebdbb2;
+    --close-hover: #cc241d;
+    --modal-overlay: rgba(0, 0, 0, 0.6);
+    --modal-bg: #1d2021;
+    --modal-text: #ebdbb2;
+    --modal-inner-border: #3c3836;
+    --input-bg: #282828;
+    --input-text: #ebdbb2;
+    --input-border: #3c3836;
+    --input-focus-border: #83a598;
+    --input-focus-shadow: rgba(131, 165, 152, 0.25);
+    --primary-bg: #83a598;
+    --primary-border: #83a598;
+    --primary-hover-bg: #458588;
+    --primary-hover-border: #458588;
+    --secondary-bg: #3c3836;
+    --secondary-border: #3c3836;
+    --secondary-hover-bg: #504945;
+    --secondary-hover-border: #504945;
+    --dropzone-bg: rgba(60, 56, 54, 0.8);
+    --dropzone-box-bg: #1d2021;
+    --dropzone-border: #83a598;
+    --dropzone-text: #ebdbb2;
+}
+
+/* ========== Global Styles ========== */
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    overflow: hidden;
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.terminal-container {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+}
+
+.main-panel {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--panel-bg);
+    overflow: hidden;
+    transition: background-color 0.3s ease;
+}
+
+.terminal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: linear-gradient(90deg, var(--header-bg-start), var(--header-bg-end));
+    border-bottom: 1px solid var(--header-border);
+    font-size: 0.9rem;
+    flex-shrink: 0;
+    transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+.terminal-header .header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.terminal-header .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.server-info {
+    font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+    color: var(--server-info-color);
+    transition: color 0.3s ease;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--close-btn-color);
+    transition: color 0.2s;
+    line-height: 1;
+}
+
+.close-btn:hover {
+    color: var(--close-hover);
+}
+
+.terminal-body {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+    background-color: var(--panel-bg);
+    min-height: 0;
+    transition: background-color 0.3s ease;
+}
+
+#terminal {
+    flex: 1;
+    width: 100%;
+    min-height: 0;
+    padding: 0;
+}
+#terminal .xterm {
+    height: 100%;
+}
+#terminal .xterm-viewport {
+    scrollbar-width: thin;
+}
+
+/* ========== 主题选择器 ========== */
+.theme-selector {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-right: 4px;
+}
+
+.theme-btn {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    padding: 0;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.theme-btn:hover {
+    transform: scale(1.25);
+}
+
+.theme-btn.active {
+    border-color: var(--close-btn-color);
+    box-shadow: 0 0 6px var(--close-btn-color);
+}
+
+.theme-btn-dark {
+    background-color: #1e1e1e;
+    border-color: #555;
+}
+
+.theme-btn-light {
+    background-color: #e8e8e8;
+    border-color: #999;
+}
+
+.theme-btn-green {
+    background-color: #00cc00;
+    border-color: #006600;
+}
+
+.theme-btn-dracula {
+    background-color: #282a36;
+    border-color: #bd93f9;
+}
+
+.theme-btn-nord {
+    background-color: #2e3440;
+    border-color: #81a1c1;
+}
+
+.theme-btn-gruvbox {
+    background-color: #282828;
+    border-color: #ebdbb2;
+}
+
+/* ========== 模态框 ========== */
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--modal-overlay);
+    transition: background-color 0.3s ease;
+}
+
+.modal.show {
+    display: block;
+}
+
+.modal-dialog {
+    position: relative;
+    margin: 10% auto;
+    width: 90%;
+    max-width: 500px;
+}
+
+.modal-content {
+    background-color: var(--modal-bg);
+    color: var(--modal-text);
+    border-radius: 6px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem;
+    border-bottom: 1px solid var(--modal-inner-border);
+    transition: border-color 0.3s ease;
+}
+
+.modal-title {
+    margin: 0;
+    font-size: 1.25rem;
+}
+
+.btn-close {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: var(--modal-text);
+}
+
+.modal-body {
+    padding: 1rem;
+}
+
+.modal-footer {
+    padding: 1rem;
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    border-top: 1px solid var(--modal-inner-border);
+    transition: border-color 0.3s ease;
+}
+
+/* ========== 表单控件 ========== */
+.form-control {
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    border: 1px solid var(--input-border);
+    transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+.form-control:focus {
+    background-color: var(--input-bg);
+    color: var(--input-text);
+    border-color: var(--input-focus-border);
+    box-shadow: 0 0 0 0.2rem var(--input-focus-shadow);
+}
+
+/* ========== 按钮 ========== */
+.btn-primary {
+    background-color: var(--primary-bg);
+    border-color: var(--primary-border);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.btn-primary:hover {
+    background-color: var(--primary-hover-bg);
+    border-color: var(--primary-hover-border);
+}
+
+.btn-secondary {
+    background-color: var(--secondary-bg);
+    border-color: var(--secondary-border);
+    transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.btn-secondary:hover {
+    background-color: var(--secondary-hover-bg);
+    border-color: var(--secondary-hover-border);
+}
+
+/* ========== 拖拽上传 ========== */
+.drop-zone {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: var(--dropzone-bg);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 2000;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s ease, background-color 0.3s ease;
+}
+
+.drop-zone.dragover {
+    opacity: 1;
+    pointer-events: all;
+}
+
+.drop-zone div {
+    padding: 2rem;
+    background-color: var(--dropzone-box-bg);
+    border: 2px dashed var(--dropzone-border);
+    border-radius: 8px;
+    font-size: 1.2rem;
+    color: var(--dropzone-text);
+    transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;
+}

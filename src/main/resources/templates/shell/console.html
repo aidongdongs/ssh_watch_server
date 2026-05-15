@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Web Shell - <span th:text="${server.host + ':' + server.port}"></span></title>
+    <link rel="stylesheet" th:href="@{/js/xterm.min.css}" />
+    <link th:href="@{/bootstrap-5.0.0-beta3-dist/css/bootstrap.min.css}" rel="stylesheet">
+    <link th:href="@{/shell/console.css}" rel="stylesheet">
+</head>
+<body>
+    <div class="terminal-container">
+        <div class="main-panel">
+            <div class="terminal-header">
+                <div class="header-left">
+                    <span>💻 Web Shell 连接</span>
+                    <span class="server-info ms-3" th:text="${server.host + ':' + server.port + ' (' + server.username + ')'}"></span>
+                </div>
+                <div class="header-right">
+                    <div class="theme-selector">
+                        <button class="theme-btn theme-btn-dark active" data-theme="dark" title="深色主题"></button>
+                        <button class="theme-btn theme-btn-light" data-theme="light" title="浅色主题"></button>
+                        <button class="theme-btn theme-btn-green" data-theme="green" title="绿色主题"></button>
+                        <button class="theme-btn theme-btn-dracula" data-theme="dracula" title="德古拉主题"></button>
+                        <button class="theme-btn theme-btn-nord" data-theme="nord" title="Nord 主题"></button>
+                        <button class="theme-btn theme-btn-gruvbox" data-theme="gruvbox" title="Gruvbox 主题"></button>
+                    </div>
+                    <button class="close-btn" onclick="closeShell()">×</button>
+                </div>
+            </div>
+            <div class="terminal-body">
+                <div id="terminal"></div>
+            </div>
+        </div>
+
+        <!-- 文件上传模态框 -->
+        <div class="modal" id="uploadModal">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">📤 上传文件</h5>
+                        <button type="button" class="btn-close" onclick="hideUploadModal()">×</button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="uploadForm">
+                            <div class="mb-3">
+                                <label for="localFile" class="form-label">选择本地文件</label>
+                                <input type="file" class="form-control" id="localFile" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="remoteUploadPath" class="form-label">上传到路径</label>
+                                <input type="text" class="form-control" id="remoteUploadPath" placeholder="请输入远程保存路径" required>
+                            </div>
+                        </form>
+                        <div id="uploadProgress" style="display: none;">
+                            <div class="progress mb-2">
+                                <div class="progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                            <small id="uploadStatus" class="text-info"></small>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="hideUploadModal()">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="performUpload()">上传</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 拖拽上传区域 -->
+        <div class="drop-zone" id="dropZone">
+            <div>拖拽文件到此处上传</div>
+        </div>
+    </div>
+
+    <script th:src="@{/js/xterm.min.js}"></script>
+    <script th:src="@{/bootstrap-5.0.0-beta3-dist/js/bootstrap.bundle.min.js}"></script>
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        const serverId = /*[[${server.id}]]*/ '0';
+        const serverHost = /*[[${server.host}]]*/ '';
+        const serverPort = /*[[${server.port}]]*/ 22;
+        const serverUsername = /*[[${server.username}]]*/ '';
+        const serverPassword = /*[[${server.password}]]*/ '';
+        /*]]>*/
+    </script>
+    <script th:src="@{/shell/console.js}"></script>
+</body>
+</html>

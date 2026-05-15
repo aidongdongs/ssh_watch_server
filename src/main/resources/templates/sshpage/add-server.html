@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="zh" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>添加 SSH 服务器</title>
+
+  <!-- ✅ 引用本地 Bootstrap 5.0.0-beta3 CSS -->
+  <link th:href="@{/bootstrap-5.0.0-beta3-dist/css/bootstrap.min.css}" rel="stylesheet">
+
+  <style>
+    .form-container {
+      max-width: 520px;
+      margin: 40px auto;
+      padding: 40px;
+      border-radius: 12px;
+      background-color: #fff;
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+      transition: box-shadow 0.3s ease-in-out, transform 0.2s ease-in-out;
+    }
+    
+    .form-container:hover {
+      box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .form-title {
+      text-align: center;
+      font-weight: 500;
+      margin-bottom: 1.5rem;
+      color: #333;
+      border-left: 4px solid #007bff;
+      padding-left: 15px;
+    }
+
+
+    .required::after {
+      content: " *";
+      color: #e63946;
+    }
+    
+    .form-label {
+      font-weight: 500;
+    }
+    
+    .form-control:focus {
+      border-color: #007bff;
+      box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .btn-submit {
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+    
+    .btn-submit:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    }
+    
+    .btn-submit:active {
+      transform: translateY(0);
+    }
+    
+    .btn-cancel {
+      transition: all 0.3s ease;
+    }
+    
+    .btn-cancel:hover {
+      transform: translateY(-2px);
+    }
+    
+    .input-icon {
+      position: absolute;
+      right: 15px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #6c757d;
+    }
+    
+    .form-group {
+      position: relative;
+      margin-bottom: 1.5rem;
+    }
+    
+    .form-text {
+      font-size: 0.8rem;
+      color: #6c757d;
+    }
+    
+    .page-header {
+      background-color: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+      padding: 20px;
+      margin-bottom: 25px;
+    }
+    
+    @media (max-width: 768px) {
+      .form-container {
+        margin: 20px auto;
+        padding: 25px;
+      }
+      
+      .page-header {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body class="bg-light">
+<div class="container py-4">
+  <div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+      <h2 class="mb-0">➕ 添加 SSH 服务器</h2>
+      <a th:href="@{/monitor/list}" class="btn btn-outline-secondary">⬅️ 返回监控列表</a>
+    </div>
+  </div>
+  
+  <div class="form-container">
+    <h2 class="form-title">服务器配置信息</h2>
+
+    <!-- 表单 -->
+    <form th:action="@{/ssh-service/add}" method="post" novalidate onsubmit="return validateForm()">
+      <!-- Host -->
+      <div class="form-group">
+        <label for="host" class="form-label required">主机地址</label>
+        <input type="text"
+               class="form-control"
+               id="host"
+               name="host"
+               placeholder="如：8.138.104.239 或 your-server.com"
+               required>
+        <div class="form-text">支持 IP 或域名</div>
+      </div>
+
+      <!-- Port -->
+      <div class="form-group">
+        <label for="port" class="form-label required">SSH 端口</label>
+        <input type="number"
+               class="form-control"
+               id="port"
+               name="port"
+               value="22"
+               min="1"
+               max="65535"
+               required>
+        <div class="form-text">默认为 22</div>
+      </div>
+
+      <!-- Username -->
+      <div class="form-group">
+        <label for="username" class="form-label required">用户名</label>
+        <input type="text"
+               class="form-control"
+               id="username"
+               name="username"
+               placeholder="如：root 或 ubuntu"
+               required>
+      </div>
+
+      <!-- Password -->
+      <div class="form-group">
+        <label for="password" class="form-label required">密码</label>
+        <input type="password"
+               class="form-control"
+               id="password"
+               name="password"
+               placeholder="请输入 SSH 登录密码"
+               required>
+      </div>
+
+      <!-- Submit & Cancel -->
+      <div class="d-grid gap-2">
+        <!-- 提交按钮 -->
+        <button type="submit" class="btn btn-success btn-lg btn-submit">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-server me-2" viewBox="0 0 16 16">
+            <path d="M1.5 0A1.5 1.5 0 0 0 0 1.5v7A1.5 1.5 0 0 0 1.5 10H2v1H1a1 1 0 0 0-1 1v2a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1h-1v-1h.5A1.5 1.5 0 0 0 16 8.5v-7A1.5 1.5 0 0 0 14.5 0h-13Zm1 1.5v7a.5.5 0 0 1 .5.5h11a.5.5 0 0 1 .5-.5v-7a.5.5 0 0 1-.5-.5h-11a.5.5 0 0 1-.5.5ZM7 11.5a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5v-1Z"/>
+          </svg>
+          保存服务器配置
+        </button>
+
+        <a th:href="@{/monitor/list}" class="btn btn-outline-secondary btn-lg btn-cancel">⬅️ 取消返回</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ✅ 引用本地 Bootstrap JS（用于交互组件，如提示框等） -->
+<script th:src="@{/bootstrap-5.0.0-beta3-dist/js/bootstrap.bundle.min.js}"></script>
+<script>
+  function validateForm() {
+    const host = document.getElementById('host').value.trim();
+    const port = document.getElementById('port').value;
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value;
+
+    if (!host) {
+      alert('请输入主机地址');
+      return false;
+    }
+    if (!port || port < 1 || port > 65535) {
+      alert('端口必须是 1-65535 之间的数字');
+      return false;
+    }
+    if (!username) {
+      alert('请输入用户名');
+      return false;
+    }
+    if (!password) {
+      alert('请输入密码');
+      return false;
+    }
+    return true; // 允许提交
+  }
+</script>
+
+</body>
+</html>
