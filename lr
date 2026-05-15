@@ -1,0 +1,28 @@
+[WARNING] Unable to find the root directory. Create a .mvn directory in the root directory or add the root="true" attribute on the root project's model to identify it.
+[INFO] Scanning for projects...
+[INFO] 
+[INFO] ---------------< com.example:springboot_mybatis_sqlite >----------------
+[INFO] Building springboot_mybatis_sqlite 0.0.1-SNAPSHOT
+[INFO]   from pom.xml
+[INFO] --------------------------------[ jar ]---------------------------------
+[WARNING] The POM for com.alibaba:druid:jar:1.2.6 is invalid, transitive dependencies (if any) will not be available: 2 problems were encountered while building the effective model for com.alibaba:druid:jar:1.2.6
+    - [ERROR] 'dependencies.dependency.systemPath' for com.sun:tools:jar must specify an absolute path but is ${project.basedir}/lib/openjdk-1.8-tools.jar @ line 708, column 4
+    - [ERROR] 'dependencies.dependency.systemPath' for com.sun:jconsole:jar must specify an absolute path but is ${project.basedir}/lib/openjdk-1.8-jconsole.jar @ line 716, column 4
+[INFO] ------------------------------------------------------------------------
+[INFO] BUILD FAILURE
+[INFO] ------------------------------------------------------------------------
+[INFO] Total time:  0.585 s
+[INFO] Finished at: 2026-05-16T00:52:48+08:00
+[INFO] ------------------------------------------------------------------------
+[ERROR] Failed to execute goal on project springboot_mybatis_sqlite: Could not collect dependencies for project com.example:springboot_mybatis_sqlite:jar:0.0.1-SNAPSHOT
+[ERROR] Failed to read artifact descriptor for org.springframework.boot:spring-boot-starter-log4j2:jar:2.5.4
+[ERROR] 	Caused by: The following artifacts could not be resolved: org.springframework.boot:spring-boot-starter-log4j2:pom:2.5.4 (absent)
+[ERROR] Failed to read artifact descriptor for com.github.mwiede:jsch:jar:2.27.5
+[ERROR] 	Caused by: The following artifacts could not be resolved: com.github.mwiede:jsch:pom:2.27.5 (absent): Failed to collect dependencies at org.springframework.boot:spring-boot-starter-log4j2:jar:2.5.4
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the '-e' switch
+[ERROR] Re-run Maven using the '-X' switch to enable verbose output
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/DependencyResolutionException

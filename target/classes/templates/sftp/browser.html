@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title th:text="'文件管理器 - ' + ${server.host}">文件管理器</title>
+    <link th:href="@{/sftp/browser.css}" rel="stylesheet">
+</head>
+<body>
+    <!-- 头部：IP 信息主展示 -->
+    <div class="header" id="header">
+        <span class="header-title">📁 <span class="server-ip" th:text="${server.host}"></span>:<span class="server-port" th:text="${server.port}"></span></span>
+        <span class="server-tag" th:text="'(' + ${server.username} + ')'"></span>
+    </div>
+
+    <!-- 主体布局 -->
+    <div class="browser-layout">
+        <!-- 左侧快捷导航 -->
+        <div class="sidebar" id="sidebar"></div>
+
+        <!-- 右侧内容区 -->
+        <div class="main-content">
+            <!-- 面包屑 -->
+            <div class="breadcrumb" id="breadcrumb"></div>
+
+            <!-- 操作栏 -->
+            <div class="toolbar">
+                <button onclick="uploadFile()">📤 上传</button>
+                <button onclick="downloadFile()" id="btnDownload" disabled>⬇️ 下载</button>
+                <button onclick="createDirectory()">📁 新建文件夹</button>
+                <button onclick="renameFile()" id="btnRename" disabled>✏️ 重命名</button>
+                <button onclick="deleteFile()" id="btnDelete" disabled>🗑️ 删除</button>
+                <button onclick="refresh()">🔄 刷新</button>
+            </div>
+
+            <!-- 上传进度条 -->
+            <div id="uploadProgress" class="upload-progress" style="display:none;">
+                <div class="upload-info">
+                    <span id="uploadFileName"></span>
+                    <span id="uploadPercent">0%</span>
+                </div>
+                <div class="progress-bar-wrapper">
+                    <div id="uploadProgressBar" class="progress-bar-fill" style="width:0%"></div>
+                </div>
+            </div>
+
+            <!-- 文件列表 -->
+            <div class="file-table-wrapper">
+                <table id="fileList">
+                    <thead>
+                        <tr>
+                            <th style="width:50%">名称</th>
+                            <th style="width:15%">大小</th>
+                            <th style="width:20%">修改时间</th>
+                            <th style="width:15%">权限</th>
+                        </tr>
+                    </thead>
+                    <tbody id="fileListBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 注入服务器信息 -->
+    <script th:inline="javascript">
+        const serverId = /*[[${server.id}]]*/ '0';
+        const serverHost = /*[[${server.host}]]*/ '';
+    </script>
+    <script th:src="@{/sftp/browser.js}"></script>
+</body>
+</html>
