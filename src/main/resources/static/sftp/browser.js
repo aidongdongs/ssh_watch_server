@@ -289,7 +289,6 @@ function onUploadMessage(event) {
         case 'upload_progress':
             clearTimeout(chunkTimeout);
             updateSingleFileProgress(queueIndex, msg.percent, msg.received);
-            updateOverallProgress();
             sendNextChunk();
             break;
         case 'upload_complete':
@@ -355,9 +354,6 @@ function cancelQueue() {
 // ===== 多文件上传进度面板 =====
 function showMultiProgress(files) {
     document.getElementById('uploadProgress').style.display = 'block';
-    document.getElementById('overallLabel').textContent = '📤 队列上传中...';
-    document.getElementById('overallPercent').textContent = '0%';
-    document.getElementById('overallProgressBar').style.width = '0%';
 
     var container = document.getElementById('fileProgressList');
     container.innerHTML = '';
@@ -402,17 +398,6 @@ function updateSingleFileProgress(index, percent, received) {
     }
 }
 
-// 更新队列总进度
-function updateOverallProgress() {
-    var totalSent = queueUploadedBytes;
-    if (queueIndex < uploadQueue.length && currentFile) {
-        totalSent += fileOffset;
-    }
-    var percent = queueTotalBytes > 0 ? (totalSent / queueTotalBytes * 100) : 0;
-    document.getElementById('overallPercent').textContent = percent.toFixed(1) + '%';
-    document.getElementById('overallProgressBar').style.width = percent + '%';
-}
-
 function markFileComplete(index) {
     var bar = document.getElementById('fileBar_' + index);
     var status = document.getElementById('fileStatus_' + index);
@@ -429,8 +414,6 @@ function markFileError(index, message) {
 
 function hideMultiProgress() {
     document.getElementById('uploadProgress').style.display = 'none';
-    document.getElementById('overallProgressBar').style.width = '0%';
-    document.getElementById('overallPercent').textContent = '0%';
     document.getElementById('fileProgressList').innerHTML = '';
 }
 

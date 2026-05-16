@@ -34,6 +34,11 @@ public class UploadSession {
     private long queueTotalBytes;       // 队列所有文件的总字节数
     private long queueStartTime;        // 队列开始时间戳
 
+    // 过渡期标志：防止队列切换文件时的竞态窗口（sftp.md §12）
+    // resetForNextFile() 后为 true，首个合法 upload_progress 回复后清除
+    private boolean transitioning;
+    private long transitionTime;        // 过渡期开始时间戳（用于判断帧是否过快）
+
     public UploadSession() {}
 
     public UploadSession(String wsSessionId, String remoteFilePath, long fileSize,
@@ -91,6 +96,10 @@ public class UploadSession {
         } catch (Exception e) {
             throw new RuntimeException("切换队列文件失败: " + e.getMessage(), e);
         }
+        // 标记过渡期：新 OutputStream 已打开但客户端尚未确认 upload_ready，
+        // 此期间收到的二进制帧可能是上一文件的残留数据（sftp.md §12）
+        this.transitioning = true;
+        this.transitionTime = System.currentTimeMillis();
     }
 
     // === getters & setters ===
@@ -122,4 +131,7 @@ public class UploadSession {
     public void setQueueTotalBytes(long queueTotalBytes) { this.queueTotalBytes = queueTotalBytes; }
     public long getQueueStartTime() { return queueStartTime; }
     public void setQueueStartTime(long queueStartTime) { this.queueStartTime = queueStartTime; }
+    public boolean isTransitioning() { return transitioning; }
+    public void setTransitioning(boolean transitioning) { this.transitioning = transitioning; }
+    public long getTransitionTime() { return transitionTime; }
 }

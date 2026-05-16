@@ -1,6 +1,8 @@
-# 服务器监控 & Web Shell 系统
+# 服务器监控 & Web Shell & SFTP 文件管理系统
 
-基于 **Spring Boot 2.5.4** + **MyBatis** + **SQLite** 构建的轻量级服务器远程监控与 Web 终端管理平台。通过 SSH 协议远程采集 Linux 服务器的 CPU、内存、磁盘等性能指标，并支持浏览器端 Web Shell 终端交互。
+基于 **Spring Boot 2.5.4** + **MyBatis** + **SQLite** 构建的轻量级服务器远程监控与 Web 终端管理平台。通过 SSH 协议远程采集 Linux 服务器的 CPU、内存、磁盘等性能指标，支持浏览器端 Web Shell 终端交互和 SFTP 文件浏览管理。
+
+> 项目根目录下的 `README.md` 为完整版本文档，本文件为精简参考。
 
 ---
 
@@ -26,8 +28,7 @@
 src/main/java/com/show/
 ├── TestApplication.java              # 启动类
 ├── config/
-│   ├── DatabaseInitializer.java       # 数据库初始化（已注释，不生效）
-│   └── WebSocketConfig.java           # WebSocket 路由注册（/ssh/**）
+│   └── WebSocketConfig.java           # WebSocket 路由注册（/ssh/** + /sftp/upload/**）
 ├── controller/
 │   ├── CustomErrorController.java     # 自定义 404/500 错误页面
 │   ├── MonitorController.java         # 监控列表页面路由
@@ -51,26 +52,40 @@ src/main/java/com/show/
 │   ├── DiskUtil.java                  # df -hT 输出解析（过滤虚拟文件系统）
 │   ├── MemoryUtil.java                # free 输出解析（字节格式转换）
 │   └── SSHUtil.java                   # JSch SSH 客户端封装
-└── websocket/
-    ├── SSHConnectionInfo.java         # WebSocket ↔ SSH 连接映射
-    └── SSHWebSocketHandler.java       # WebSocket ↔ SSH 桥接处理器
+├── websocket/
+│   ├── SSHConnectionInfo.java         # WebSocket ↔ SSH 连接映射
+│   └── SSHWebSocketHandler.java       # WebSocket ↔ SSH 桥接处理器
+└── sftp/                             # SFTP 文件浏览模块（与主项目解耦）
+    ├── FileBrowserController.java    # 页面路由 + REST API
+    ├── SftpService.java              # SFTP 业务服务
+    ├── SftpSessionManager.java       # SFTP 连接管理
+    ├── SftpUtils.java                # 工具类（防路径穿越 + JSON）
+    ├── SftpUploadWebSocketHandler.java # WebSocket 分块上传
+    ├── UploadSession.java            # 上传会话状态 + 队列支持
+    └── FileItem.java                 # 文件条目 DTO
 
 src/main/resources/
 ├── application.yml                    # 应用配置（数据源、Thymeleaf、MyBatis）
 ├── log4j2.xml                         # Log4j2 配置（控制台输出）
 ├── README.md                          # 项目文档（本文件）
+├── sftp/
+│   └── sftp.md                        # SFTP 模块设计文档
 ├── templates/
 │   ├── error.html                     # 自定义 404/500 错误页面
 │   ├── monitor/list.html              # 监控仪表盘（核心页面）
 │   ├── shell/console.html             # Web Shell 终端页面
+│   ├── sftp/browser.html              # SFTP 文件浏览器页面
 │   ├── sshpage/add-server.html        # 添加 SSH 服务器表单
 │   └── sshpage/edit.html              # 编辑 SSH 服务器表单
 └── static/
     ├── bootstrap-5.0.0-beta3-dist/    # Bootstrap 框架（本地部署）
     ├── js/xterm.min.js / xterm.min.css # xterm.js 终端模拟器
-    └── shell/
-        ├── console.js                 # 终端前端逻辑（WebSocket + xterm）
-        └── console.css                # 终端主题样式（6种主题）
+    ├── shell/
+    │   ├── console.js                 # 终端前端逻辑（WebSocket + xterm）
+    │   └── console.css                # 终端主题样式（6种主题）
+    └── sftp/
+        ├── browser.js                 # 文件浏览器交互逻辑
+        └── browser.css                # 文件浏览器样式
 
 src/test/java/com/show/
 └── SSHControllerTest.java             # SSH 采集集成测试（已注释）
@@ -227,7 +242,27 @@ src/test/java/com/show/
 - 后台 daemon 线程持续读取 SSH stdout 并转发
 - 清理方法确保 channel 和 session 被正确关闭
 
-### 5. 错误处理
+### 5. SFTP 文件浏览器
+
+**页面入口:** 监控列表卡片点击 "📁 文件" 按钮 → `/sftp/{serverId}`
+
+**功能特性：**
+- 目录列取与导航（面包屑 + 左侧快捷目录面板）
+- 文件选中机制（单击选中、双击进目录）
+- 文件下载：`channel.get(path, outputStream)` 流式传输，不缓冲到内存
+- WebSocket 分块上传：512KB 分块、滑动窗口流控、多文件队列串行上传、实时进度条
+- 删除 / 重命名 / 新建文件夹
+- 四种视图状态覆盖：加载中 / 空目录 / 错误 / 正常
+
+**安全设计：**
+- 路径穿越防护（`SftpUtils.sanitizePath()` 拒绝 `..`）
+- 模板注入前清空密码
+- 统一 JSON 响应 `{success, data, message}`
+- 每次 API 调用独立建立/断开 SFTP 连接
+
+> 详细设计见 `src/main/resources/sftp/sftp.md`
+
+### 6. 错误处理
 
 - 自定义 404/500 错误页面，中文提示
 - 错误页面支持动态消息（`errorMessage` / `errorDetails` 属性）
@@ -291,6 +326,13 @@ src/test/java/com/show/
 | POST | `/ssh-service/refresh/all` | 触发全量数据采集 |
 | GET | `/shell/{id}` | Web Shell 页面 |
 | WS | `/ssh/{id}` | WebSocket Shell 连接 |
+| GET | `/sftp/{serverId}` | SFTP 文件浏览器页面 |
+| GET | `/sftp/api/{serverId}/list?path=` | 列目录 |
+| GET | `/sftp/api/{serverId}/download?path=` | 下载文件 |
+| POST | `/sftp/api/{serverId}/delete` | 删除文件/目录 |
+| POST | `/sftp/api/{serverId}/rename` | 重命名 |
+| POST | `/sftp/api/{serverId}/mkdir` | 新建文件夹 |
+| WS | `/sftp/upload/{serverId}` | WebSocket 分块上传 |
 | GET | `/error` | 错误页面 |
 
 ---

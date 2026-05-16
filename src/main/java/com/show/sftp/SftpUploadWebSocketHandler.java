@@ -131,6 +131,18 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
         UploadSession session = uploads.get(ws.getId());
         if (session == null || session.isCompleted()) return;
 
+        // 过渡期保护：队列切换文件后，丢弃过快到达的二进制帧（sftp.md §12）
+        // 协议保证客户端在收到 upload_ready 后才发帧，因此过渡期内到达的帧均为残留数据
+        if (session.isTransitioning()) {
+            long elapsed = System.currentTimeMillis() - session.getTransitionTime();
+            if (elapsed < 20) {
+                log.warn("过渡期内收到二进制帧(elapsed={}ms)，疑似残留帧，已丢弃. sessionId={}",
+                        elapsed, ws.getId());
+                return;
+            }
+            session.setTransitioning(false);
+        }
+
         try {
             // 读取二进制帧数据
             byte[] bytes = new byte[message.getPayload().remaining()];
@@ -166,24 +178,21 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
 
                 boolean isLastInQueue = (session.getQueueIndex() >= session.getQueueTotal());
 
-                if (isLastInQueue && session.getQueueTotal() > 1) {
-                    // 队列最后一个文件 → 发送单文件完成 + 队列汇总
+                if (isLastInQueue) {
+                    // 最后一个文件（含单文件模式）→ 发送单文件完成 + 队列汇总
                     sendJson(ws, completeMsg);
                     long queueCost = System.currentTimeMillis() - session.getQueueStartTime();
+                    long totalBytes = session.getQueueTotalBytes() > 0
+                            ? session.getQueueTotalBytes() : session.getFileSize();
                     String queueSpeed = String.format("%.1fMB/s",
-                            (double) session.getQueueTotalBytes() / queueCost / 1024);
+                            (double) totalBytes / queueCost / 1024);
                     Map<String, Object> queueMsg = new HashMap<>();
                     queueMsg.put("type", "upload_queue_complete");
                     queueMsg.put("totalFiles", session.getQueueTotal());
-                    queueMsg.put("totalBytes", session.getQueueTotalBytes());
+                    queueMsg.put("totalBytes", totalBytes);
                     queueMsg.put("totalTimeMs", queueCost);
                     queueMsg.put("speed", queueSpeed);
                     sendJson(ws, queueMsg);
-                    session.closeAndCleanup(false);
-                    uploads.remove(ws.getId());
-                } else if (isLastInQueue || session.getQueueTotal() <= 1) {
-                    // 单文件模式
-                    sendJson(ws, completeMsg);
                     session.closeAndCleanup(false);
                     uploads.remove(ws.getId());
                 } else {

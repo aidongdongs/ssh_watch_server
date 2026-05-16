@@ -33,20 +33,8 @@
                 <button onclick="refresh()">🔄 刷新</button>
             </div>
 
-            <!-- 上传进度面板（队列模式，默认隐藏） -->
+            <!-- 上传进度面板（默认隐藏） -->
             <div id="uploadProgress" class="upload-progress" style="display:none;">
-                <!-- 总体进度 -->
-                <div class="upload-overall">
-                    <div class="upload-info">
-                        <span id="overallLabel">📤 队列上传中...</span>
-                        <span id="overallPercent">0%</span>
-                    </div>
-                    <div class="progress-bar-wrapper">
-                        <div id="overallProgressBar" class="progress-bar-fill" style="width:0%"></div>
-                    </div>
-                </div>
-                <!-- 分隔线 -->
-                <div class="upload-divider"></div>
                 <!-- 单文件进度列表 -->
                 <div id="fileProgressList"></div>
                 <!-- 取消按钮 -->

@@ -27,8 +27,7 @@
 src/main/java/com/show/
 ├── TestApplication.java              # Spring Boot 启动类
 ├── config/
-│   ├── WebSocketConfig.java          # WebSocket 路由注册 + SftpUploadInterceptor
-│   └── DatabaseInitializer.java      # 数据库自动迁移（当前注释关闭）
+│   └── WebSocketConfig.java          # WebSocket 路由注册（SSH + SFTP 上传）
 ├── controller/
 │   ├── Shouye.java                   # 首页路由 (/ → 监控列表)
 │   ├── MonitorController.java        # 监控列表页面路由 (/monitor/list)
@@ -283,4 +282,4 @@ spring:
 
 ### 数据库
 
-SQLite 文件数据库无需额外安装。首次启动自动读取 `identifier.sqlite`，如需初始化空数据库，创建空文件即可。表结构由应用启动时自动检查补全（`DatabaseInitializer` 当前注释关闭，可手动开启）。
+SQLite 文件数据库无需额外安装。首次启动自动读取 `identifier.sqlite`，如需初始化空数据库，创建空文件即可。
