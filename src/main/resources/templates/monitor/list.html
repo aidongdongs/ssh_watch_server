@@ -227,39 +227,42 @@
         }
 
         .cpu-processes {
-            background: #1e1e1e;
+            background: #f8f9fa;
             border-radius: 6px;
-            padding: 0.4rem 0.6rem;
-            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.02);
+            padding: 0.5rem 0.75rem;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+            border: 1px solid #e9ecef;
         }
         .cpu-processes .section-title {
-            color: #e0e0e0;
-            border-left-color: #ff6b6b;
+            color: #495057;
+            border-left-color: #007bff;
             margin-bottom: 0.25rem !important;
-            padding-left: 6px;
+            padding-left: 8px;
         }
         .cpu-processes .metric-detail-content {
-            background: #2d2d2d;
-            border-radius: 3px;
-            border: 1px solid #3c3c3c;
+            background: #ffffff;
+            border-radius: 4px;
+            border: 1px solid #dee2e6;
             white-space: normal;
             font-family: inherit;
             max-height: none;
             overflow: visible;
         }
         .cpu-processes .table {
-            color: #d4d4d4;
+            color: #212529;
         }
         .cpu-processes .table th {
-            border-bottom: 1px solid #3c3c3c;
+            border-bottom: 2px solid #dee2e6;
             background: transparent;
+            color: #495057;
+            font-weight: 600;
         }
         .cpu-processes .table td {
-            border-top: 1px solid #333;
-            border-bottom: 1px solid #333;
+            border-top: 1px solid #e9ecef;
+            border-bottom: 1px solid #e9ecef;
         }
         .cpu-processes .table tbody tr:hover {
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(0, 0, 0, 0.03);
         }
 
         .processes-row {
@@ -752,8 +755,8 @@
                                             <span>👤 用户信息 &amp; 性能指标</span>
                                         </h6>
                                         <div class="metric-detail-content" style="padding: 8px 12px;">
-                                            <p class="mb-2" style="color: #f8f8f2;">
-                                                <strong>👤 用户名:</strong> <span style="color: #66d9ef;">${monitor.username}</span>
+                                            <p class="mb-2">
+                                                <strong>👤 用户名:</strong> <span style="color: #0d6efd; font-weight: 500;">${monitor.username}</span>
                                             </p>
                                             <div class="d-flex flex-wrap mb-2">
                                                 <span class="metric-badge ${getCPUBadgeClass(monitor.cpuUsage || 0)}"
@@ -779,8 +782,8 @@
 
                                             <div class="mt-2">
                                                 <div class="d-flex justify-content-between">
-                                                    <small style="color: #aaa;">CPU 使用率详情</small>
-                                                    <small style="color: #f8f8f2;">${typeof monitor.cpuUsage !== 'undefined' && monitor.cpuUsage !== null ? Number(monitor.cpuUsage).toFixed(1) + '%' : 'N/A'}</small>
+                                                    <small class="text-muted">CPU 使用率详情</small>
+                                                    <small>${typeof monitor.cpuUsage !== 'undefined' && monitor.cpuUsage !== null ? Number(monitor.cpuUsage).toFixed(1) + '%' : 'N/A'}</small>
                                                 </div>
                                                 <div class="progress">
                                                     <div class="progress-bar ${getCPUProgressClass(monitor.cpuUsage || 0)}"
@@ -794,8 +797,8 @@
 
                                             <div class="mt-2">
                                                 <div class="d-flex justify-content-between">
-                                                    <small style="color: #aaa;">内存使用率详情</small>
-                                                    <small style="color: #f8f8f2;">${getMemoryUsagePercent(monitor.memoryUsage)}%</small>
+                                                    <small class="text-muted">内存使用率详情</small>
+                                                    <small>${getMemoryUsagePercent(monitor.memoryUsage)}%</small>
                                                 </div>
                                                 <div class="progress">
                                                     <div class="progress-bar ${getMemoryProgressClass(getMemoryUsagePercent(monitor.memoryUsage))}"
@@ -820,19 +823,19 @@
                                             <div class="table-responsive">
                                                 <table class="table table-sm mb-0" style="font-size: 0.82rem; border-collapse: collapse; width: 100%;">
                                                     <thead>
-                                                    <tr style="border-bottom: 2px solid #444;">
-                                                        <th style="padding: 3px 6px; color: #66d9ef; font-weight: 600; text-align: left;">文件系统</th>
-                                                        <th style="padding: 3px 6px; color: #66d9ef; font-weight: 600; text-align: left;">挂载点</th>
-                                                        <th style="padding: 3px 6px; color: #66d9ef; font-weight: 600; text-align: left;">类型</th>
-                                                        <th style="padding: 3px 6px; color: #66d9ef; font-weight: 600; text-align: left;">使用率</th>
+                                                    <tr style="border-bottom: 2px solid #dee2e6;">
+                                                        <th style="padding: 3px 6px; color: #495057; font-weight: 600; text-align: left;">文件系统</th>
+                                                        <th style="padding: 3px 6px; color: #495057; font-weight: 600; text-align: left;">挂载点</th>
+                                                        <th style="padding: 3px 6px; color: #495057; font-weight: 600; text-align: left;">类型</th>
+                                                        <th style="padding: 3px 6px; color: #495057; font-weight: 600; text-align: left;">使用率</th>
                                                     </tr>
                                                     </thead>
                                                     <tbody>
                                                     ${monitor.diskUsages && monitor.diskUsages.map(disk => `
-                                                        <tr style="border-bottom: 1px solid #383838;">
-                                                            <td style="padding: 2px 6px; line-height: 1.4; color: #e0e0e0; font-size: 0.78rem;">${disk.filesystem || ''}</td>
-                                                            <td style="padding: 2px 6px; line-height: 1.4; color: #e0e0e0; font-size: 0.78rem;">${disk.mountedOn || ''}</td>
-                                                            <td style="padding: 2px 6px; line-height: 1.4; color: #e0e0e0; font-size: 0.78rem;">${disk.type || ''}</td>
+                                                        <tr style="border-bottom: 1px solid #e9ecef;">
+                                                            <td style="padding: 2px 6px; line-height: 1.4; font-size: 0.78rem;">${disk.filesystem || ''}</td>
+                                                            <td style="padding: 2px 6px; line-height: 1.4; font-size: 0.78rem;">${disk.mountedOn || ''}</td>
+                                                            <td style="padding: 2px 6px; line-height: 1.4; font-size: 0.78rem;">${disk.type || ''}</td>
                                                             <td style="padding: 2px 6px; line-height: 1.4;">
                                                                 <div class="d-flex align-items-center" style="gap: 6px;">
                                                                     <span class="badge ${getDiskBadgeClass(disk.usagePercent)}" style="font-size: 0.65rem; min-width: 36px;">
@@ -1005,24 +1008,24 @@
         }
 
         var html = '<table class="table table-sm table-borderless mb-0" style="font-size: 0.82rem;">';
-        html += '<thead><tr style="color: #66d9ef;">' +
+        html += '<thead><tr style="color: #495057;">' +
                 '<th style="width: 18%; padding: 2px 4px;">进程id</th>' +
                 '<th style="width: 18%; padding: 2px 4px;">cpu使用率</th>' +
                 '<th style="padding: 2px 4px;">进程名称</th>' +
                 '</tr></thead><tbody>';
 
-        var rankColors = ['#ff6b6b', '#ffd93d', '#6bcb77'];
+        var rankColors = ['#dc3545', '#e67e22', '#28a745'];
         lines.forEach(function(line, index) {
             var parts = line.split(/\s+/);
             if (parts.length >= 3) {
                 var pid = parts[0];
                 var cpu = parts[1];
                 var cmd = parts.slice(2).join(' ');
-                var color = index < 3 ? rankColors[index] : '#cccccc';
+                var color = index < 3 ? rankColors[index] : '#6c757d';
                 html += '<tr>' +
                         '<td style="padding: 1px 4px; line-height: 1.8; color: ' + color + '; font-weight: ' + (index < 3 ? 'bold' : 'normal') + ';">' + pid + '</td>' +
                         '<td style="padding: 1px 4px; line-height: 1.8; color: ' + color + '; font-weight: ' + (index < 3 ? 'bold' : 'normal') + ';">' + cpu + '</td>' +
-                        '<td style="padding: 1px 4px; line-height: 1.8; color: #cccccc;">' + cmd + '</td>' +
+                        '<td style="padding: 1px 4px; line-height: 1.8; color: #6c757d;">' + cmd + '</td>' +
                         '</tr>';
             }
         });
@@ -1049,24 +1052,24 @@
         }
 
         var html = '<table class="table table-sm table-borderless mb-0" style="font-size: 0.82rem;">';
-        html += '<thead><tr style="color: #66d9ef;">' +
+        html += '<thead><tr style="color: #495057;">' +
                 '<th style="width: 18%; padding: 2px 4px;">进程id</th>' +
                 '<th style="width: 18%; padding: 2px 4px;">内存使用率</th>' +
                 '<th style="padding: 2px 4px;">进程名称</th>' +
                 '</tr></thead><tbody>';
 
-        var rankColors = ['#ff6b6b', '#ffd93d', '#6bcb77'];
+        var rankColors = ['#dc3545', '#e67e22', '#28a745'];
         lines.forEach(function(line, index) {
             var parts = line.split(/\s+/);
             if (parts.length >= 3) {
                 var pid = parts[0];
                 var mem = parts[1];
                 var cmd = parts.slice(2).join(' ');
-                var color = index < 3 ? rankColors[index] : '#cccccc';
+                var color = index < 3 ? rankColors[index] : '#6c757d';
                 html += '<tr>' +
                         '<td style="padding: 1px 4px; line-height: 1.8; color: ' + color + '; font-weight: ' + (index < 3 ? 'bold' : 'normal') + ';">' + pid + '</td>' +
                         '<td style="padding: 1px 4px; line-height: 1.8; color: ' + color + '; font-weight: ' + (index < 3 ? 'bold' : 'normal') + ';">' + mem + '</td>' +
-                        '<td style="padding: 1px 4px; line-height: 1.8; color: #cccccc;">' + cmd + '</td>' +
+                        '<td style="padding: 1px 4px; line-height: 1.8; color: #6c757d;">' + cmd + '</td>' +
                         '</tr>';
             }
         });
