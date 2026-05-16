@@ -1,7 +1,8 @@
 package com.show.sftp;
 
 /**
- * 文件条目 DTO
+ * 文件条目 DTO，用于在前端和后端之间传递文件/目录信息
+ * 字段与 SFTP LsEntry 属性一一对应，前后端共用同一数据结构
  */
 public class FileItem {
 

@@ -19,13 +19,15 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * WebSocket 分块上传处理器
- * 支持单文件上传和多文件队列上传（串行，复用 SSH 连接）
+ * 协议：upload_start(Text) → upload_ready(Text) → binary chunks → upload_progress(Text) → ... → upload_complete(Text)
+ * 支持多文件队列上传（串行，复用 SSH 连接）
  */
 @Component
 public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
 
     private static final Logger log = LoggerFactory.getLogger(SftpUploadWebSocketHandler.class);
 
+    // 活跃上传会话 wsSessionId → UploadSession
     private final ConcurrentHashMap<String, UploadSession> uploads = new ConcurrentHashMap<>();
 
     @Autowired
@@ -43,6 +45,7 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
 
         switch (type) {
             case "upload_start": {
+                // 从 HandshakeInterceptor 注入的 session attributes 中获取 serverId
                 String serverId = (String) ws.getAttributes().get("serverId");
                 String rawPath = json.get("remotePath").asText();
                 String remotePath = SftpUtils.sanitizePath(rawPath);
@@ -50,7 +53,7 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
                 int queueIndex = json.has("queueIndex") ? json.get("queueIndex").asInt() : 1;
                 int queueTotal = json.has("queueTotal") ? json.get("queueTotal").asInt() : 1;
 
-                // 队列模式连接复用：检查是否已有 UploadSession
+                // 队列模式：检查是否有可复用的连接（上一个文件已完成）
                 UploadSession existing = uploads.get(ws.getId());
                 if (existing != null && existing.isCompleted() && queueIndex > 1) {
                     try {
@@ -66,17 +69,16 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
                         log.error("队列模式复用连接失败，降级为重建", e);
                         existing.closeAndCleanup(true);
                         uploads.remove(ws.getId());
-                        // 降级到新建逻辑
                     }
                 }
 
-                // 清理残留（出错的 session）
+                // 清理残留的上一次出错会话
                 if (existing != null) {
                     existing.closeAndCleanup(true);
                     uploads.remove(ws.getId());
                 }
 
-                // 首次上传或出错后重建
+                // 首次上传或降级后重建：建立全新 SSH+SFTP 连接
                 try {
                     SystemInfo server = systemInfoMapper.selectById(serverId);
                     if (server == null) {
@@ -115,7 +117,7 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
                 break;
             }
             case "upload_cancel":
-                // 用户取消上传，移除并清理会话，删除远程不完整文件
+                // 用户取消上传，删除远程不完整文件并断开连接
                 UploadSession cancelled = uploads.remove(ws.getId());
                 if (cancelled != null) cancelled.closeAndCleanup(true);
                 break;
@@ -130,28 +132,32 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
         if (session == null || session.isCompleted()) return;
 
         try {
+            // 读取二进制帧数据
             byte[] bytes = new byte[message.getPayload().remaining()];
             message.getPayload().get(bytes);
 
+            // 写入 SFTP 输出流（直接写到远程服务器，不缓冲）
             session.getOutputStream().write(bytes);
             session.getOutputStream().flush();
 
+            // 更新进度
             session.setReceivedBytes(session.getReceivedBytes() + bytes.length);
             double percent = (double) session.getReceivedBytes() / session.getFileSize() * 100;
 
+            // 回复进度确认给客户端（同时也是滑动窗口流控信号）
             Map<String, Object> progressMsg = new HashMap<>();
             progressMsg.put("type", "upload_progress");
             progressMsg.put("received", session.getReceivedBytes());
             progressMsg.put("percent", percent);
             sendJson(ws, progressMsg);
 
+            // 检查文件是否传输完毕
             if (session.getReceivedBytes() >= session.getFileSize()) {
                 session.setCompleted(true);
                 long cost = System.currentTimeMillis() - session.getStartTime();
                 String speed = String.format("%.1fMB/s",
                         (double) session.getFileSize() / cost / 1024);
 
-                // 构建单文件完成消息
                 Map<String, Object> completeMsg = new HashMap<>();
                 completeMsg.put("type", "upload_complete");
                 completeMsg.put("fileSize", session.getFileSize());
@@ -161,7 +167,7 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
                 boolean isLastInQueue = (session.getQueueIndex() >= session.getQueueTotal());
 
                 if (isLastInQueue && session.getQueueTotal() > 1) {
-                    // 队列最后一个文件 → 单文件完成 + 队列汇总
+                    // 队列最后一个文件 → 发送单文件完成 + 队列汇总
                     sendJson(ws, completeMsg);
                     long queueCost = System.currentTimeMillis() - session.getQueueStartTime();
                     String queueSpeed = String.format("%.1fMB/s",
@@ -176,12 +182,12 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
                     session.closeAndCleanup(false);
                     uploads.remove(ws.getId());
                 } else if (isLastInQueue || session.getQueueTotal() <= 1) {
-                    // 单文件模式 → 仅单文件完成，关闭连接
+                    // 单文件模式
                     sendJson(ws, completeMsg);
                     session.closeAndCleanup(false);
                     uploads.remove(ws.getId());
                 } else {
-                    // 队列中间文件 → 单文件完成，仅关 OutputStream，保留 SSH
+                    // 队列中间文件 → 仅关闭 OutputStream，保留 SSH 连接供下一个文件复用
                     sendJson(ws, completeMsg);
                     try { session.getOutputStream().close(); } catch (Exception ignored) {}
                 }
@@ -213,7 +219,7 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
     }
 
     /**
-     * Spring 容器关闭时，清理所有 SFTP 上传连接
+     * Spring 容器关闭时，清理所有残留的 SFTP 上传连接，防止连接泄漏
      */
     @PreDestroy
     public void destroy() {
@@ -227,7 +233,7 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
     }
 
     /**
-     * 向 WebSocket 客户端发送 JSON 消息，忽略发送时的 IO 异常
+     * 向客户端发送 JSON 文本消息，忽略发送时的 IO 异常
      */
     private void sendJson(WebSocketSession ws, Map<String, Object> msg) {
         try {
@@ -239,7 +245,7 @@ public class SftpUploadWebSocketHandler extends AbstractWebSocketHandler {
     }
 
     /**
-     * 构造上传错误消息 Map
+     * 构造上传错误消息
      */
     private Map<String, Object> errorMsg(String message) {
         Map<String, Object> m = new HashMap<>();

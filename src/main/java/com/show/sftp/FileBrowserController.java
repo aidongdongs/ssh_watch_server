@@ -17,7 +17,8 @@ import java.util.Map;
 
 /**
  * 文件浏览器 Controller
- * 页面路由 + JSON REST API
+ * 页面路由 + JSON REST API（上传由 SftpUploadWebSocketHandler 独立处理）
+ * 所有 JSON 接口统一返回 {success, data, message} 格式
  */
 @Controller
 @RequestMapping("/sftp")
@@ -33,6 +34,7 @@ public class FileBrowserController {
 
     /**
      * 文件浏览器页面
+     * 查询服务器信息注入模板，注入前清空密码防止泄露
      */
     @GetMapping("/{serverId:\\d+}")
     public String browser(@PathVariable Long serverId, Model model) {
@@ -46,7 +48,7 @@ public class FileBrowserController {
     }
 
     /**
-     * 列目录
+     * 列目录 API
      */
     @GetMapping("/api/{serverId}/list")
     @ResponseBody
@@ -63,6 +65,7 @@ public class FileBrowserController {
 
     /**
      * 下载文件（流式传输，不缓冲到内存）
+     * channel.get(remotePath, outputStream) 直接写入 HttpServletResponse
      */
     @GetMapping("/api/{serverId}/download")
     public void download(@PathVariable Long serverId,

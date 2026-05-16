@@ -11,6 +11,8 @@ import java.io.OutputStream;
 
 /**
  * 上传会话状态对象
+ * 每个 WebSocket 连接对应一个 UploadSession，跟踪单次或队列上传的进度和资源
+ * 支持队列模式：同一 SSH 连接内串行上传多个文件，复用 ChannelSftp
  */
 public class UploadSession {
 
@@ -26,11 +28,11 @@ public class UploadSession {
     private OutputStream outputStream;
     private boolean completed;
 
-    // 队列模式字段：支持多文件串行上传
+    // 队列模式字段：支持多文件串行上传，复用同一 SSH 连接
     private int queueIndex = 1;         // 当前文件在队列中的序号
     private int queueTotal = 1;         // 队列总文件数
     private long queueTotalBytes;       // 队列所有文件的总字节数
-    private long queueStartTime;        // 队列开始时间（毫秒）
+    private long queueStartTime;        // 队列开始时间戳
 
     public UploadSession() {}
 
@@ -48,8 +50,8 @@ public class UploadSession {
     }
 
     /**
-     * 清理所有资源：关闭输出流 → 删除不完整文件 → 断开 SSH
-     * @param deletePartialFile true=上传未完成时删除远程不完整文件
+     * 清理所有资源：关闭输出流 → 如有需要删除远程不完整文件 → 断开 Channel → 断开 SSH Session
+     * @param deletePartialFile true=上传未完成时删除远程不完整文件，false=正常完成保留文件
      */
     public void closeAndCleanup(boolean deletePartialFile) {
         if (outputStream != null) {
@@ -69,7 +71,8 @@ public class UploadSession {
     }
 
     /**
-     * 在不关闭 SSH 连接的前提下重置上传状态（队列模式复用）
+     * 不关闭 SSH 连接，仅重置状态准备上传下一个文件（队列模式复用）
+     * 关闭旧 OutputStream → 调用 channel.put() 打开新文件输出流
      */
     public void resetForNextFile(String newRemotePath, long newFileSize) {
         this.remoteFilePath = newRemotePath;

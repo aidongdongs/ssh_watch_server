@@ -10,7 +10,8 @@ import java.util.Properties;
 
 /**
  * SSH 连接与远程命令执行工具类
- * 基于 JSch 库实现，支持命令执行、文件上传下载及 CPU 使用率解析
+ * 基于 JSch 库实现，支持远程命令执行及 CPU 使用率解析
+ * 文件传输功能已迁移至 com.show.sftp 包
  */
 public class SSHUtil {
 
@@ -176,49 +177,6 @@ public class SSHUtil {
             log.info("SSH Session 已断开");
         }
     }
-
-    /**
-     * 上传文件（SFTP）
-     */
-    public void uploadFile(String localFilePath, String remoteFilePath) throws JSchException, SftpException {
-        if (!isConnected()) {
-            throw new IllegalStateException("SSH 未连接，请先调用 connect()");
-        }
-
-        ChannelSftp sftp = null;
-        try {
-            sftp = (ChannelSftp) session.openChannel("sftp");
-            sftp.connect();
-            sftp.put(localFilePath, remoteFilePath);
-            log.info("文件上传成功: {} -> {}", localFilePath, remoteFilePath);
-        } finally {
-            if (sftp != null && sftp.isConnected()) {
-                sftp.disconnect();
-            }
-        }
-    }
-
-    /**
-     * 下载文件（SFTP）
-     */
-    public void downloadFile(String remoteFilePath, String localFilePath) throws JSchException, SftpException {
-        if (!isConnected()) {
-            throw new IllegalStateException("SSH 未连接，请先调用 connect()");
-        }
-
-        ChannelSftp sftp = null;
-        try {
-            sftp = (ChannelSftp) session.openChannel("sftp");
-            sftp.connect();
-            sftp.get(remoteFilePath, localFilePath);
-            log.info("文件下载成功: {} -> {}", remoteFilePath, localFilePath);
-        } finally {
-            if (sftp != null && sftp.isConnected()) {
-                sftp.disconnect();
-            }
-        }
-    }
-
 
     /**
      * 从 top 命令输出中解析 CPU 使用率

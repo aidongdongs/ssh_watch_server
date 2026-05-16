@@ -1,14 +1,14 @@
-// === SFTP 文件浏览器 ===
+// === SFTP 文件浏览器：文件列表加载、导航、上传/下载/删除/重命名等操作 ===
 
 let currentPath = '/';
 let selectedFile = null;
 
-// WebSocket 上传相关
-const CHUNK_SIZE = 512 * 1024; // 512KB
+// WebSocket 分块上传相关状态
+const CHUNK_SIZE = 512 * 1024; // 每块 512KB，平衡网络吞吐与内存占用
 let wsUpload = null;
 let currentFile = null;
 let fileOffset = 0;
-let chunkTimeout = null;
+let chunkTimeout = null; // 每块 30s 超时定时器
 
 // 多文件上传队列状态
 let uploadQueue = [];
@@ -17,8 +17,7 @@ let queueTotalBytes = 0;
 let queueUploadedBytes = 0;
 let queueStartTime = 0;
 
-// 单文件上传速度计算
-let fileStartTime = 0;
+// 单文件实时网速计算（每 500ms 采样一次）
 let lastSpeedTime = 0;
 let lastSpeedBytes = 0;
 let currentSpeed = 0;
@@ -34,12 +33,12 @@ const QUICK_DIRS = [
     { label: '/opt',      path: '/opt' },
 ];
 
-// ===== 页面初始化 =====
+// ===== 页面初始化：默认加载根目录 =====
 document.addEventListener('DOMContentLoaded', function() {
     loadList('/');
 });
 
-// ===== 文件列表加载 =====
+// ===== 文件列表加载：请求 API 后根据结果渲染表格/空状态/错误状态 =====
 function loadList(path) {
     currentPath = path;
     selectedFile = null;
@@ -67,12 +66,12 @@ function loadList(path) {
         });
 }
 
-// ===== 渲染文件列表 =====
+// ===== 渲染文件列表表格 =====
 function renderFiles(items) {
     var tbody = document.getElementById('fileListBody');
     tbody.innerHTML = '';
 
-    // 如果不是根目录，显示 "返回上级" 行
+    // 非根目录时添加 "返回上级" 行
     if (currentPath !== '/') {
         var parentTr = document.createElement('tr');
         parentTr.className = 'file-row';
@@ -92,7 +91,7 @@ function renderFiles(items) {
             '<td class="file-mtime">' + escapeHtml(item.lastModified) + '</td>' +
             '<td class="file-perms">' + escapeHtml(item.permissions) + '</td>';
 
-        // 单击行选中/取消选中，双击目录进入
+        // 单击选中/取消选中行，双击进入目录
         tr.addEventListener('click', function(e) {
             e.stopPropagation();
             if (selectedFile && selectedFile.path === item.path) {
@@ -121,7 +120,7 @@ function renderFiles(items) {
     });
 }
 
-// ===== 选中状态更新 =====
+// ===== 行选中状态更新 + 工具栏按钮 disabled 联动 =====
 function updateSelectionUI() {
     var rows = document.querySelectorAll('#fileListBody tr');
     rows.forEach(function(tr) { tr.classList.remove('selected'); });
@@ -140,7 +139,7 @@ function updateSelectionUI() {
     document.getElementById('btnDownload').disabled = !selectedFile || selectedFile.isDir;
 }
 
-// ===== 面包屑 =====
+// ===== 面包屑导航 =====
 function updateBreadcrumb(path) {
     var container = document.getElementById('breadcrumb');
     container.innerHTML = '';
@@ -170,7 +169,7 @@ function updateBreadcrumb(path) {
     });
 }
 
-// ===== 左侧快捷导航 =====
+// ===== 左侧快捷导航面板 =====
 function renderSidebar(currentPath) {
     var sidebar = document.getElementById('sidebar');
     sidebar.innerHTML = '<div class="sidebar-title">📂 快捷目录</div>';
@@ -206,7 +205,7 @@ function refresh() {
     loadList(currentPath);
 }
 
-// ===== 状态显示 =====
+// ===== 四种视图状态：加载中 / 空目录 / 错误 / 正常 =====
 function showLoading() {
     var tbody = document.getElementById('fileListBody');
     tbody.innerHTML = '<tr><td colspan="4"><div class="loading">🔄 加载中...</div></td></tr>';
@@ -222,7 +221,7 @@ function showError(msg) {
     tbody.innerHTML = '<tr><td colspan="4"><div class="error">❌ ' + escapeHtml(msg) + '</div></td></tr>';
 }
 
-// ===== 多文件上传 =====
+// ===== 多文件上传：弹出文件选择器，启动 WebSocket 队列上传 =====
 function uploadFiles() {
     if (wsUpload && wsUpload.readyState === WebSocket.OPEN) {
         alert('已有上传任务进行中，请等待完成');
@@ -236,7 +235,7 @@ function uploadFiles() {
         var files = Array.from(input.files);
         if (files.length === 0) return;
 
-        // 检查同名文件
+        // 检查当前目录是否有同名文件
         var existingNames = new Set();
         document.querySelectorAll('#fileListBody tr.file-row td.file-name').forEach(function(td) {
             var name = td.textContent.replace(/[📁📄]\s*/, '').trim();
@@ -252,8 +251,7 @@ function uploadFiles() {
     input.click();
 }
 
-// ===== 上传文件夹 =====
-
+// ===== WebSocket 队列上传：建立连接后逐个文件发送 =====
 function startQueueUpload(files) {
     uploadQueue = files;
     queueIndex = 0;
@@ -279,7 +277,7 @@ function startQueueUpload(files) {
     };
 }
 
-// WebSocket 消息处理（抽取为命名函数以支持取消后继续复用）
+// WebSocket 消息处理：upload_ready → 发数据块 → upload_progress → 下一块 → upload_complete
 function onUploadMessage(event) {
     var msg = JSON.parse(event.data);
     switch (msg.type) {
@@ -302,7 +300,6 @@ function onUploadMessage(event) {
             if (queueIndex < uploadQueue.length) {
                 sendNextFileInQueue();
             }
-            // 最后一个文件：等待 upload_queue_complete
             break;
         case 'upload_error':
             clearTimeout(chunkTimeout);
@@ -312,7 +309,6 @@ function onUploadMessage(event) {
             if (queueIndex < uploadQueue.length) {
                 sendNextFileInQueue();
             }
-            // 最后一个文件出错也等待 upload_queue_complete
             break;
         case 'upload_queue_complete':
             hideMultiProgress();
@@ -323,12 +319,12 @@ function onUploadMessage(event) {
     }
 }
 
+// 发送队列中的下一个文件（复用同一 WebSocket 连接）
 function sendNextFileInQueue() {
     if (queueIndex >= uploadQueue.length) return;
     var file = uploadQueue[queueIndex];
     currentFile = file;
     fileOffset = 0;
-    fileStartTime = Date.now();
     lastSpeedTime = Date.now();
     lastSpeedBytes = 0;
     currentSpeed = 0;
@@ -344,6 +340,7 @@ function sendNextFileInQueue() {
     }));
 }
 
+// 取消全部上传
 function cancelQueue() {
     if (!wsUpload) return;
     wsUpload.send(JSON.stringify({ type: 'upload_cancel' }));
@@ -355,12 +352,7 @@ function cancelQueue() {
     refresh();
 }
 
-// ===== 单文件上传（兼容旧入口） =====
-function uploadFile() {
-    uploadFiles();
-}
-
-// ===== 多文件进度渲染 =====
+// ===== 多文件上传进度面板 =====
 function showMultiProgress(files) {
     document.getElementById('uploadProgress').style.display = 'block';
     document.getElementById('overallLabel').textContent = '📤 队列上传中...';
@@ -388,12 +380,13 @@ function showMultiProgress(files) {
     });
 }
 
+// 更新单个文件的进度条和上传速度
 function updateSingleFileProgress(index, percent, received) {
     var bar = document.getElementById('fileBar_' + index);
     var status = document.getElementById('fileStatus_' + index);
     if (bar) bar.style.width = percent + '%';
     if (status) {
-        // 每 500ms 更新一次速度，避免闪烁
+        // 每 500ms 采样一次计算实时网速
         var now = Date.now();
         if (now - lastSpeedTime > 500 && received > 0) {
             var elapsed = (now - lastSpeedTime) / 1000;
@@ -409,6 +402,7 @@ function updateSingleFileProgress(index, percent, received) {
     }
 }
 
+// 更新队列总进度
 function updateOverallProgress() {
     var totalSent = queueUploadedBytes;
     if (queueIndex < uploadQueue.length && currentFile) {
@@ -440,23 +434,7 @@ function hideMultiProgress() {
     document.getElementById('fileProgressList').innerHTML = '';
 }
 
-function finishQueueUpload() {
-    // 安全兜底：如果 upload_queue_complete 超过 3 秒未到达，自行完成
-    if (wsUpload && wsUpload.readyState === WebSocket.OPEN) {
-        var totalTime = Date.now() - queueStartTime;
-        var speed = (queueTotalBytes / 1024 / 1024) / (totalTime / 1000);
-        alert('全部上传完成: ' + uploadQueue.length + ' 个文件, ' + speed.toFixed(1) + 'MB/s');
-        hideMultiProgress();
-        refresh();
-        wsUpload.close();
-    }
-}
-
-// ===== 上传（单文件模式，内部调用多文件入口） =====
-function startWebSocketUpload(file) {
-    uploadFiles();
-}
-
+// ===== 滑动窗口流控：发一块 512KB，等待服务器确认后再发下一块 =====
 function sendNextChunk() {
     if (!currentFile || fileOffset >= currentFile.size) return;
 
@@ -471,14 +449,14 @@ function sendNextChunk() {
     wsUpload.send(blob);
 }
 
-// ===== 下载 =====
+// ===== 下载：浏览器直接跳转，流式传输不缓冲到内存 =====
 function downloadFile(path) {
     if (!path && selectedFile) path = selectedFile.path;
     if (!path) return;
     window.location.href = '/sftp/api/' + serverId + '/download?path=' + encodeURIComponent(path);
 }
 
-// ===== 重命名 =====
+// ===== 重命名：选中文件 → prompt 输入新名称 → POST =====
 function renameFile() {
     if (!selectedFile) return;
     var newName = prompt('重命名: ' + selectedFile.name, selectedFile.name);
@@ -500,7 +478,7 @@ function renameFile() {
     }
 }
 
-// ===== 删除 =====
+// ===== 删除：确认弹窗 → POST =====
 function deleteFile() {
     if (!selectedFile) return;
     if (!confirm('确定要删除 "' + selectedFile.name + '" 吗？')) return;
@@ -521,7 +499,7 @@ function deleteFile() {
     });
 }
 
-// ===== 新建文件夹 =====
+// ===== 新建文件夹：prompt 输入名称 → POST =====
 function createDirectory() {
     var name = prompt('请输入文件夹名称:');
     if (!name || name.trim() === '') return;

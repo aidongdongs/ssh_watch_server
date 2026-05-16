@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * SFTP 连接会话管理
+ * 根据服务器 ID 查询数据库获取连接信息，每次调用建立/销毁连接（无连接池）
  */
 @Component
 public class SftpSessionManager {

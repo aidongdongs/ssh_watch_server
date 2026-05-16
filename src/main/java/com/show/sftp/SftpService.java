@@ -14,6 +14,8 @@ import java.util.*;
 
 /**
  * SFTP 业务服务
+ * 封装列目录/下载/删除/重命名/新建文件夹等原子操作
+ * 每个方法内部：connect → try 操作 → finally disconnect
  */
 @Service
 public class SftpService {
@@ -25,6 +27,7 @@ public class SftpService {
 
     /**
      * 列目录
+     * 返回排序后的文件列表（目录在前，按名称字典序）
      */
     public List<FileItem> listFiles(Long serverId, String path) {
         path = SftpUtils.sanitizePath(path);
@@ -70,7 +73,8 @@ public class SftpService {
     }
 
     /**
-     * 下载文件，写入输出流
+     * 下载文件，通过 HttpServletResponse OutputStream 流式传输
+     * 不缓冲完整文件到内存，支持大文件
      */
     public void downloadFile(Long serverId, String path, OutputStream outputStream) {
         path = SftpUtils.sanitizePath(path);
@@ -85,7 +89,7 @@ public class SftpService {
     }
 
     /**
-     * 删除文件或目录
+     * 删除文件或目录（目录必须为空）
      */
     public void deleteFile(Long serverId, String path, String type) {
         path = SftpUtils.sanitizePath(path);
@@ -106,6 +110,7 @@ public class SftpService {
 
     /**
      * 重命名文件或目录
+     * 提取旧路径的父目录，拼接新名称作为目标路径
      */
     public void renameFile(Long serverId, String oldPath, String newName) {
         oldPath = SftpUtils.sanitizePath(oldPath);
@@ -123,7 +128,8 @@ public class SftpService {
     }
 
     /**
-     * 新建文件夹
+     * 新建文件夹（单层）
+     * 如果目录已存在则视为成功（部分 SFTP 服务器返回 SSH_FX_FAILURE 而非 FILE_ALREADY_EXISTS）
      */
     public void createDirectory(Long serverId, String path) {
         path = SftpUtils.sanitizePath(path);
@@ -132,7 +138,7 @@ public class SftpService {
             channel.mkdir(path);
             log.info("新建文件夹成功: {}", path);
         } catch (SftpException e) {
-            // 目录已存在也视为成功（部分 SFTP 服务器返回 SSH_FX_FAILURE 而非 FILE_ALREADY_EXISTS）
+            // 目录已存在也视为成功
             try {
                 SftpATTRS attrs = channel.stat(path);
                 if (attrs != null && attrs.isDir()) {
